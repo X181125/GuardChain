@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guardchain"
+version = "0.1.0"
+description = "Professional static scanner for suspicious Python supply chain packages."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "GuardChain Demo" }]
+license = { file = "LICENSE" }
+dependencies = [
+    "packaging>=23.0",
+    "PyYAML>=6.0",
+    "rich>=13.0",
+    "networkx>=3.0",
+    "pydantic>=2.0",
+]
+keywords = ["security", "static-analysis", "supply-chain", "malware", "pypi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Security",
+]
+
+[project.scripts]
+guardchain = "guardchain.cli:main"
+
+[project.optional-dependencies]
+graph = ["graphviz>=0.20"]
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.5", "mypy>=1.8", "pre-commit>=3.0"]
+research = ["pandas>=2.0", "scikit-learn>=1.3", "matplotlib>=3.8"]
+
+[tool.setuptools.packages.find]
+include = ["guardchain*"]
+
+[tool.setuptools.package-data]
+guardchain = ["rules/*.json", "rules/*.yaml", "data/*.txt", "data/*.yaml"]

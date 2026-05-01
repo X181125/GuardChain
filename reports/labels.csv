@@ -1,0 +1,4 @@
+﻿path,label
+benign_pkg,BENIGN
+malicious_like_pkg,MALICIOUS
+suspicious_pkg,SUSPICIOUS

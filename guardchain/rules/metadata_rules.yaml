@@ -1,0 +1,8 @@
+- id: M001
+  name: Missing repository URL
+  severity: low
+  confidence: 0.6
+  category: metadata
+  description: Package metadata does not include a repository or homepage URL.
+  tags:
+    - metadata-quality

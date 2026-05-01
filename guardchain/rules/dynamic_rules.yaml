@@ -1,0 +1,81 @@
+- id: Y001
+  name: Runtime process execution
+  severity: medium
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed a process execution event.
+  tags:
+    - dynamic
+    - process
+- id: Y002
+  name: Runtime shell spawn
+  severity: high
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed a shell process.
+  tags:
+    - dynamic
+    - shell
+- id: Y003
+  name: Runtime network connection attempt
+  severity: high
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed a network connection attempt or network-capable tool.
+  tags:
+    - dynamic
+    - network
+- id: Y004
+  name: Runtime sensitive file access
+  severity: critical
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed access to a sensitive local path.
+  tags:
+    - dynamic
+    - credential-access
+- id: Y005
+  name: Runtime suspicious file write
+  severity: medium
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed a suspicious file write.
+  tags:
+    - dynamic
+    - file-write
+- id: Y006
+  name: Runtime persistence-like file access
+  severity: critical
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed access to a persistence-like path.
+  tags:
+    - dynamic
+    - persistence
+- id: Y007
+  name: Runtime package manager invocation
+  severity: high
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed a package manager process.
+  tags:
+    - dynamic
+    - dependency
+- id: Y008
+  name: Runtime binary or script drop
+  severity: high
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace observed a write to an executable or script extension.
+  tags:
+    - dynamic
+    - file-write
+- id: Y009
+  name: Runtime attempt blocked by sandbox policy
+  severity: medium
+  confidence: 0.95
+  category: dynamic
+  description: Sandbox trace or runner observed a blocked operation or timeout.
+  tags:
+    - dynamic
+    - sandbox

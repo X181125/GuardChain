@@ -1,0 +1,8 @@
+[project]
+name = "exfiltration-like-pkg"
+version = "0.1.0"
+description = "Safe simulated exfiltration pattern for GuardChain demos."
+dependencies = ["requests"]
+
+[project.urls]
+Repository = "https://example.com/exfiltration-like-pkg/source"

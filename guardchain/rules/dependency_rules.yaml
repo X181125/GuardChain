@@ -1,0 +1,16 @@
+- id: D001
+  name: Known suspicious demo dependency
+  severity: critical
+  confidence: 0.85
+  category: dependency
+  description: Dependency appears in the local educational suspicious package list.
+  tags:
+    - dependency-risk
+- id: D003
+  name: Direct URL dependency
+  severity: medium
+  confidence: 0.7
+  category: dependency
+  description: Dependency is installed from a direct URL.
+  tags:
+    - supply-chain

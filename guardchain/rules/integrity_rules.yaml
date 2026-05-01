@@ -1,0 +1,8 @@
+- id: I001
+  name: New Python file not present in source repo
+  severity: medium
+  confidence: 0.8
+  category: integrity
+  description: Distributed package contains a Python file absent from the source tree.
+  tags:
+    - integrity

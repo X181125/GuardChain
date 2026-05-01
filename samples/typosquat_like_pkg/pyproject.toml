@@ -1,0 +1,9 @@
+[project]
+name = "reqeusts"
+version = "0.1.0"
+description = "Package name intentionally resembles requests for typosquat testing."
+authors = [{ name = "GuardChain Demo" }]
+dependencies = ["numppy==1.0.0"]
+
+[project.urls]
+Repository = "https://example.com/typosquat-like-pkg/source"

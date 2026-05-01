@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GuardChain Scan Report",
+  "type": "object",
+  "required": ["target", "label", "risk_score", "findings", "score_breakdown", "tool_version", "schema_version"],
+  "properties": {
+    "target": {"type": "string"},
+    "package_name": {"type": ["string", "null"]},
+    "label": {"enum": ["BENIGN", "SUSPICIOUS", "MALICIOUS"]},
+    "risk_score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "findings": {"type": "array"},
+    "score_breakdown": {"type": "array"},
+    "tool_version": {"type": "string"},
+    "schema_version": {"type": "string"}
+  }
+}

@@ -1,0 +1,133 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
+import subprocess
+import sys
+import unittest
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+class CliTests(unittest.TestCase):
+    def test_cli_artifacts(self) -> None:
+        with TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            json_path = out / "result.json"
+            dot_path = out / "graph.dot"
+            mmd_path = out / "graph.mmd"
+            md_path = out / "report.md"
+            sarif_path = out / "report.sarif"
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "guardchain",
+                    "scan",
+                    "--path",
+                    str(PROJECT_ROOT / "samples" / "malicious_like_pkg"),
+                    "--json",
+                    str(json_path),
+                    "--markdown",
+                    str(md_path),
+                    "--sarif",
+                    str(sarif_path),
+                    "--graph-dot",
+                    str(dot_path),
+                    "--graph-mermaid",
+                    str(mmd_path),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertTrue(json_path.exists())
+            self.assertTrue(dot_path.exists())
+            self.assertTrue(mmd_path.exists())
+            self.assertTrue(md_path.exists())
+            self.assertTrue(sarif_path.exists())
+            self.assertEqual(json.loads(json_path.read_text(encoding="utf-8"))["label"], "MALICIOUS")
+
+    def test_fail_on_malicious_returns_2(self) -> None:
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "guardchain",
+                "scan",
+                "--path",
+                str(PROJECT_ROOT / "samples" / "malicious_like_pkg"),
+                "--fail-on-malicious",
+                "--quiet",
+            ],
+            cwd=PROJECT_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 2, proc.stderr)
+
+    def test_evaluate_command_writes_json(self) -> None:
+        with TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            labels = out / "labels.csv"
+            report = out / "eval.json"
+            labels.write_text("path,label\nbenign_pkg,BENIGN\nmalicious_like_pkg,MALICIOUS\n", encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "guardchain",
+                    "evaluate",
+                    "--dataset",
+                    str(PROJECT_ROOT / "samples"),
+                    "--labels",
+                    str(labels),
+                    "--json",
+                    str(report),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertTrue(report.exists())
+            self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["accuracy"], 1.0)
+
+    def test_rules_commands(self) -> None:
+        list_proc = subprocess.run(
+            [sys.executable, "-m", "guardchain", "rules", "list"],
+            cwd=PROJECT_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(list_proc.returncode, 0, list_proc.stderr)
+        self.assertIn("B002", list_proc.stdout)
+        validate_proc = subprocess.run(
+            [sys.executable, "-m", "guardchain", "rules", "validate"],
+            cwd=PROJECT_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(validate_proc.returncode, 0, validate_proc.stderr)
+
+    def test_dynamic_command_help(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, "-m", "guardchain", "sandbox", "--help"],
+            cwd=PROJECT_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("--mode", proc.stdout)
+        self.assertIn("--trace", proc.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

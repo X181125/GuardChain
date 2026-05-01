@@ -1,0 +1,65 @@
+{
+  "metadata": [
+    "M001 Missing repository URL",
+    "M002 Very short description",
+    "M003 Package name similar to popular package",
+    "M004 Suspicious setup.py content",
+    "M005 Suspicious console script entrypoint",
+    "M006 Unusual version pattern",
+    "M007 Missing author/contact information",
+    "M008 Suspicious project URL domain",
+    "M009 Metadata mismatch across files"
+  ],
+  "behavior": [
+    "B001 Dynamic code execution",
+    "B002 System command execution",
+    "B003 Network communication",
+    "B004 Sensitive environment access",
+    "B005 Obfuscation or encoded payload handling",
+    "B006 Obfuscated execution pattern",
+    "B007 Download and execute pattern",
+    "B008 Possible exfiltration pattern",
+    "B009 Suspicious import",
+    "B010 Persistence-like behavior",
+    "B011 Suspicious binary/script drop",
+    "B012 Remote-command-like pattern"
+  ],
+  "setup": [
+    "S001 Dangerous top-level setup.py behavior",
+    "S002 Custom install/build/develop command",
+    "S003 setup.py network access",
+    "S004 setup.py obfuscated dynamic execution",
+    "S005 setup.py modifies environment or files"
+  ],
+  "taint": [
+    "T001 Sensitive source flows into network sink",
+    "T002 Network source flows into file write",
+    "T003 Network source flows into command execution",
+    "T004 Obfuscation source flows into dynamic execution",
+    "T005 Local file secret flows into network sink",
+    "T006 Network source flows into dynamic execution",
+    "T007 Sensitive source flows into command execution"
+  ],
+  "dependency": [
+    "D001 Known suspicious demo dependency",
+    "D002 Dependency typosquatting",
+    "D003 Direct URL dependency",
+    "D004 Dependency without pinned version",
+    "D005 VCS dependency",
+    "D006 Local path dependency",
+    "D007 Imported but not declared",
+    "D008 Declared but not imported",
+    "D009 Suspicious dependency name pattern"
+  ],
+  "integrity": [
+    "I001 New Python file not present in source repo",
+    "I002 Python file differs at AST level",
+    "I003 New suspicious binary/script file",
+    "I004 Integrity violation combined with dangerous behavior"
+  ],
+  "warning": [
+    "W001 File could not be parsed",
+    "W002 Metadata could not be parsed",
+    "W003 Archive entry skipped"
+  ]
+}

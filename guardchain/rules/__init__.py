@@ -1,0 +1,1 @@
+"""Central GuardChain rule metadata."""

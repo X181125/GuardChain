@@ -1,0 +1,76 @@
+{
+  "metadata": {
+    "M001": ["Missing repository URL", "LOW", 5],
+    "M002": ["Very short description", "LOW", 5],
+    "M003": ["Package name similar to popular package", "MEDIUM", 20],
+    "M004": ["Suspicious setup.py content", "HIGH", 30],
+    "M005": ["Suspicious console script entrypoint", "MEDIUM", 15],
+    "M006": ["Unusual version pattern", "LOW", 5],
+    "M007": ["Missing author/contact information", "LOW", 5],
+    "M008": ["Suspicious project URL domain", "MEDIUM", 15],
+    "M009": ["Metadata mismatch across files", "MEDIUM", 15]
+  },
+  "behavior": {
+    "B001": ["Dynamic code execution", "HIGH", 25],
+    "B002": ["System command execution", "HIGH", 30],
+    "B003": ["Network communication", "MEDIUM", 15],
+    "B004": ["Sensitive environment access", "HIGH", 25],
+    "B005": ["Obfuscation or encoded payload handling", "MEDIUM", 15],
+    "B006": ["Obfuscated execution pattern", "CRITICAL", 45],
+    "B007": ["Download and execute pattern", "CRITICAL", 50],
+    "B008": ["Possible exfiltration pattern", "CRITICAL", 50],
+    "B009": ["Suspicious import", "LOW", 5],
+    "B010": ["Persistence-like behavior", "HIGH", 30],
+    "B011": ["Suspicious binary/script drop", "HIGH", 30],
+    "B012": ["Remote-command-like pattern", "CRITICAL", 50]
+  },
+  "setup": {
+    "S001": ["Dangerous top-level setup.py behavior", "CRITICAL", 50],
+    "S002": ["Custom install/build/develop command", "HIGH", 30],
+    "S003": ["setup.py network access", "HIGH", 30],
+    "S004": ["setup.py obfuscated dynamic execution", "CRITICAL", 50],
+    "S005": ["setup.py modifies environment or files", "MEDIUM", 15]
+  },
+  "taint": {
+    "T001": ["Sensitive source flows into network sink", "HIGH", 30],
+    "T002": ["Network source flows into file write", "HIGH", 30],
+    "T003": ["Network source flows into command execution", "CRITICAL", 50],
+    "T004": ["Obfuscation source flows into dynamic execution", "CRITICAL", 50],
+    "T005": ["Local file secret flows into network sink", "HIGH", 30],
+    "T006": ["Network source flows into dynamic execution", "CRITICAL", 50],
+    "T007": ["Sensitive source flows into command execution", "HIGH", 30]
+  },
+  "dependency": {
+    "D001": ["Known suspicious demo dependency", "CRITICAL", 60],
+    "D002": ["Dependency typosquatting", "HIGH", 30],
+    "D003": ["Direct URL dependency", "MEDIUM", 20],
+    "D004": ["Dependency without pinned version", "LOW", 5],
+    "D005": ["VCS dependency", "MEDIUM", 15],
+    "D006": ["Local path dependency", "MEDIUM", 15],
+    "D007": ["Imported but not declared", "LOW", 5],
+    "D008": ["Declared but not imported", "LOW", 5],
+    "D009": ["Suspicious dependency name pattern", "MEDIUM", 15]
+  },
+  "integrity": {
+    "I001": ["New Python file not present in source repo", "MEDIUM", 20],
+    "I002": ["Python file differs at AST level", "MEDIUM", 15],
+    "I003": ["New suspicious binary/script file", "HIGH", 30],
+    "I004": ["Integrity violation combined with dangerous behavior", "HIGH", 30]
+  },
+  "dynamic": {
+    "Y001": ["Runtime process execution", "MEDIUM", 15],
+    "Y002": ["Runtime shell spawn", "HIGH", 30],
+    "Y003": ["Runtime network connection attempt", "HIGH", 30],
+    "Y004": ["Runtime sensitive file access", "CRITICAL", 50],
+    "Y005": ["Runtime suspicious file write", "MEDIUM", 15],
+    "Y006": ["Runtime persistence-like file access", "CRITICAL", 50],
+    "Y007": ["Runtime package manager invocation", "HIGH", 30],
+    "Y008": ["Runtime binary or script drop", "HIGH", 30],
+    "Y009": ["Runtime attempt blocked by sandbox policy", "MEDIUM", 15]
+  },
+  "warning": {
+    "W001": ["File could not be parsed", "LOW", 3],
+    "W002": ["Metadata could not be parsed", "LOW", 3],
+    "W003": ["Archive entry skipped", "LOW", 3]
+  }
+}

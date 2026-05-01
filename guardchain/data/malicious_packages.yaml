@@ -1,0 +1,9 @@
+# Demo blacklist for educational testing, not a complete malware intelligence feed.
+packages:
+  - bot-package
+  - malicious-package
+  - evil-package
+  - btstudio
+  - datakund
+  - malicious-demo-package
+  - payload-loader-demo

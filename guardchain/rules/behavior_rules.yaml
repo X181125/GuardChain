@@ -1,0 +1,22 @@
+- id: B002
+  name: System command execution
+  severity: high
+  confidence: 0.75
+  category: behavior
+  description: Detects APIs that execute operating system commands.
+  apis:
+    - os.system
+    - subprocess.run
+    - subprocess.Popen
+  tags:
+    - command-execution
+    - malware-behavior
+- id: B006
+  name: Obfuscated execution pattern
+  severity: critical
+  confidence: 0.9
+  category: behavior
+  description: Detects obfuscation handling combined with dynamic execution.
+  tags:
+    - obfuscation
+    - dynamic-execution
