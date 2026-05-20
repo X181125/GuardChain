@@ -117,6 +117,7 @@ class _SetupVisitor(ast.NodeVisitor):
                     file_path=self.rel_path,
                     evidence={"patterns": ["obfuscation", "dynamic_execution"]},
                     score=50,
+                    evidence_strength="correlated_pattern",
                 )
             )
 

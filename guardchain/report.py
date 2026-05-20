@@ -13,8 +13,10 @@ def format_terminal(result: ScanResult, verbose: bool = False, artifacts: dict[s
         f"Package: {result.package_name or 'unknown'}",
         f"Label: {result.label}",
         f"Risk score: {result.score}/100",
+        f"Analysis mode: {result.analysis_mode}",
         f"Python files analyzed: {result.python_files}",
         f"Dependencies: {dependencies}",
+        f"Evidence strength: {_summary_inline(_evidence_strength_counts(result))}",
         "",
         "Top findings:",
     ]
@@ -27,9 +29,19 @@ def format_terminal(result: ScanResult, verbose: bool = False, artifacts: dict[s
                 location = f"{location}:{finding.line}"
             lines.append(f"[{finding.severity}] {finding.rule_id} {location}")
             lines.append(finding.message)
+            lines.append(f"Evidence strength: {finding.evidence_strength}")
             if verbose and finding.evidence:
                 lines.append(f"Evidence: {finding.evidence}")
             lines.append("")
+    lines.append("Dependency risk paths:")
+    if result.dependency_risk_paths:
+        for item in result.dependency_risk_paths[:5]:
+            path = item.get("display_path") or item.get("path", [])
+            lines.append(" -> ".join(str(part) for part in path))
+    elif result.analysis_features.get("dependency_resolution"):
+        lines.append("None")
+    else:
+        lines.append("Dependency chain analysis was not performed.")
     if artifacts:
         lines.append("Artifacts:")
         for label, path in artifacts.items():
@@ -59,6 +71,7 @@ def build_sarif_report(result: ScanResult) -> dict[str, object]:
                     "category": finding.category,
                     "severity": finding.severity.lower(),
                     "confidence": finding.confidence,
+                    "evidence_strength": finding.evidence_strength,
                     "tags": finding.tags,
                 },
             },
@@ -82,6 +95,7 @@ def build_sarif_report(result: ScanResult) -> dict[str, object]:
                 "properties": {
                     "score": finding.score,
                     "confidence": finding.confidence,
+                    "evidence_strength": finding.evidence_strength,
                     "evidence": finding.evidence,
                 },
             }
@@ -125,13 +139,28 @@ def write_markdown_report(result: ScanResult, output_path: str | Path) -> None:
         f"- Python files analyzed: {result.python_files}",
         f"- Analysis mode: `{result.analysis_mode}`",
         "",
-        "## Risk Score",
+        "## Analysis Mode",
         "",
-        f"**{result.score}/100**",
+        _analysis_mode_text(result),
         "",
-        "## Score Breakdown",
+        "## Evidence Strength Summary",
         "",
+        "| Strength | Count |",
+        "| --- | ---: |",
     ]
+    for strength, count in _evidence_strength_counts(result).items():
+        lines.append(f"| {strength} | {count} |")
+    lines.extend(
+        [
+            "",
+            "## Risk Score",
+            "",
+            f"**{result.score}/100**",
+            "",
+            "## Score Breakdown",
+            "",
+        ]
+    )
     if result.score_breakdown:
         lines.extend(["| Rule | Base | Multiplier | Final | Reason |", "| --- | ---: | ---: | ---: | --- |"])
         for item in result.score_breakdown:
@@ -144,12 +173,45 @@ def write_markdown_report(result: ScanResult, output_path: str | Path) -> None:
             location = finding.file_path or "<package>"
             if finding.line is not None:
                 location += f":{finding.line}"
-            lines.extend([f"### {finding.rule_id}: {finding.title}", "", f"- Severity: `{finding.severity}`", f"- Location: `{location}`", f"- Description: {finding.message}"])
+            lines.extend(
+                [
+                    f"### {finding.rule_id}: {finding.title}",
+                    "",
+                    f"- Severity: `{finding.severity}`",
+                    f"- Evidence strength: `{finding.evidence_strength}`",
+                    f"- Source: `{finding.source}`",
+                    f"- Location: `{location}`",
+                    f"- Description: {finding.message}",
+                ]
+            )
             if finding.evidence:
                 lines.append(f"- Evidence: `{finding.evidence}`")
             lines.append("")
     else:
         lines.append("No findings.")
+    lines.extend(["## Dependency Risk Paths", ""])
+    if result.dependency_risk_paths:
+        for item in result.dependency_risk_paths:
+            chain_text = " -> ".join(str(part) for part in (item.get("display_path") or item.get("path", [])))
+            lines.append(f"- {chain_text}")
+            lines.append(f"  - Finding: {item.get('finding')} {item.get('title')}")
+            if item.get("evidence"):
+                lines.append(f"  - Evidence: `{item.get('evidence')}`")
+    elif result.analysis_features.get("dependency_resolution"):
+        lines.append("No dependency-origin findings were reported.")
+    else:
+        lines.append("Dependency chain analysis was not performed.")
+    lines.extend(["", "## Root Cause Groups", ""])
+    if result.score_breakdown:
+        grouped: dict[str, int] = {}
+        for item in result.score_breakdown:
+            root = str(item.root_key[0] if item.root_key else item.rule_id)
+            grouped[root] = grouped.get(root, 0) + 1
+        for root, count in sorted(grouped.items()):
+            lines.append(f"- `{root}`: {count}")
+    else:
+        lines.append("No scored findings.")
+    lines.append("")
     lines.extend(["## Dependencies", "", ", ".join(result.dependencies) if result.dependencies else "None", "", "## Metadata", "", "```json", json.dumps(result.metadata, indent=2, sort_keys=True), "```", ""])
     lines.extend(["## Evidence Paths", ""])
     evidence_paths = []
@@ -175,3 +237,28 @@ def _sarif_level(severity: str) -> str:
     if severity == "MEDIUM":
         return "warning"
     return "note"
+
+
+def _evidence_strength_counts(result: ScanResult) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for finding in result.findings:
+        counts[finding.evidence_strength] = counts.get(finding.evidence_strength, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _summary_inline(values: dict[str, int]) -> str:
+    if not values:
+        return "none"
+    return ", ".join(f"{key}={value}" for key, value in values.items())
+
+
+def _analysis_mode_text(result: ScanResult) -> str:
+    features = result.analysis_features or {}
+    parts = [] if result.analysis_mode == "dynamic" else ["static"]
+    if features.get("dependency_resolution"):
+        parts.append("dependency closure")
+    if features.get("dynamic_sandbox"):
+        parts.append("dynamic sandbox")
+    if features.get("integrity_comparison"):
+        parts.append("integrity comparison")
+    return " + ".join(parts)

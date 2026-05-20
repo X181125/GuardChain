@@ -1,0 +1,12 @@
+PyYAML:
+  - yaml
+Pillow:
+  - PIL
+scikit-learn:
+  - sklearn
+beautifulsoup4:
+  - bs4
+opencv-python:
+  - cv2
+python-dateutil:
+  - dateutil

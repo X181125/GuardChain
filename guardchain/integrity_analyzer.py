@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import re
+import subprocess
 from pathlib import Path
 
 from .models import Finding
@@ -23,7 +25,8 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
         rel = package_file.relative_to(package_root)
         source_file = source_root / rel
         if not source_file.exists():
-            dangerous = _contains_dangerous_behavior(package_file)
+            dangerous_tokens = _dangerous_tokens(package_file)
+            dangerous = bool(dangerous_tokens)
             findings.append(
                 Finding(
                     rule_id="I001",
@@ -32,8 +35,9 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                     category="integrity",
                     message="Python file exists in distributed package but not in source repository",
                     file_path=rel.as_posix(),
-                    evidence={"dangerous_behavior": dangerous},
+                    evidence={"dangerous_behavior": dangerous, "dangerous_tokens": dangerous_tokens},
                     score=30 if dangerous else 20,
+                    evidence_strength="integrity_confirmed",
                 )
             )
             if dangerous:
@@ -47,11 +51,15 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                         file_path=rel.as_posix(),
                         evidence={"dangerous_behavior": True, "integrity_rule": "I001"},
                         score=30,
+                        evidence_strength="integrity_confirmed",
                     )
                 )
             continue
         if _ast_dump(package_file) != _ast_dump(source_file):
-            dangerous = _contains_dangerous_behavior(package_file)
+            dangerous_tokens = _dangerous_tokens(package_file)
+            source_tokens = _dangerous_tokens(source_file)
+            new_dangerous_tokens = sorted(set(dangerous_tokens) - set(source_tokens))
+            dangerous = bool(dangerous_tokens)
             findings.append(
                 Finding(
                     rule_id="I002",
@@ -60,8 +68,14 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                     category="integrity",
                     message="Python file differs from source repository at AST level",
                     file_path=relative_path(package_file, package_root),
-                    evidence={"dangerous_behavior": dangerous},
+                    evidence={
+                        "dangerous_behavior": dangerous,
+                        "changed_functions": _changed_functions(package_file, source_file),
+                        "dangerous_tokens": dangerous_tokens,
+                        "new_dangerous_tokens": new_dangerous_tokens,
+                    },
                     score=25 if dangerous else 15,
+                    evidence_strength="integrity_confirmed",
                 )
             )
             if dangerous:
@@ -75,6 +89,7 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                         file_path=relative_path(package_file, package_root),
                         evidence={"dangerous_behavior": True, "integrity_rule": "I002"},
                         score=30,
+                        evidence_strength="integrity_confirmed",
                     )
                 )
     package_rels = {path.relative_to(package_root) for path in package_py_files}
@@ -90,6 +105,7 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                     message="Python file exists in source repository but is missing from distributed package",
                     file_path=rel.as_posix(),
                     score=5,
+                    evidence_strength="integrity_confirmed",
                 )
             )
     for package_file in sorted(package_root.rglob("*")):
@@ -105,9 +121,59 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                         message="Distributed package contains a new binary or script file not present in source",
                         file_path=rel.as_posix(),
                         score=30,
+                        evidence_strength="integrity_confirmed",
                     )
                 )
     return findings
+
+
+def extract_source_repository_hint(metadata: dict[str, object]) -> str | None:
+    candidates: list[str] = []
+    for key, value in metadata.items():
+        lowered_key = key.lower()
+        values = value.values() if isinstance(value, dict) else [value]
+        for item in values:
+            text = str(item).strip()
+            lowered = text.lower()
+            if not text:
+                continue
+            if any(marker in lowered_key for marker in ("repository", "source", "home-page", "homepage", "url")) or any(
+                marker in lowered for marker in ("github.com", "gitlab.com")
+            ):
+                candidates.extend(re.findall(r"https://[^\s,'\")\]]+", text))
+    for candidate in candidates:
+        cleaned = candidate.rstrip(".")
+        if "github.com" in cleaned or "gitlab.com" in cleaned:
+            return cleaned
+    return candidates[0] if candidates else None
+
+
+def fetch_source_repository(
+    source_url: str,
+    output_dir: Path,
+    version: str | None = None,
+    timeout_seconds: int = 30,
+) -> tuple[Path | None, list[str]]:
+    warnings: list[str] = []
+    if not _supported_source_url(source_url):
+        return None, [f"Automatic source fetch only supports GitHub/GitLab HTTPS repository URLs: {source_url}"]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    destination = output_dir / "source"
+    clone_url = source_url if source_url.endswith(".git") else f"{source_url}.git"
+    try:
+        completed = subprocess.run(["git", "clone", "--depth", "1", clone_url, str(destination)], text=True, capture_output=True, timeout=timeout_seconds, check=False)
+    except subprocess.TimeoutExpired:
+        return None, [f"Automatic source fetch timed out after {timeout_seconds} seconds."]
+    except OSError as exc:
+        return None, [f"Automatic source fetch could not start git: {exc}"]
+    if completed.returncode != 0:
+        message = (completed.stderr or completed.stdout or "git clone failed").strip()
+        return None, [f"Automatic source fetch failed: {message}"]
+    if version:
+        checked_out = _checkout_version_tag(destination, version, timeout_seconds)
+        if not checked_out:
+            warnings.append(f"No matching source tag found for version {version}; using repository default branch.")
+    return destination, warnings
 
 
 def _ast_dump(path: Path) -> str:
@@ -129,5 +195,61 @@ def _strip_docstrings(node: ast.AST) -> None:
 
 
 def _contains_dangerous_behavior(path: Path) -> bool:
+    return bool(_dangerous_tokens(path))
+
+
+def _dangerous_tokens(path: Path) -> list[str]:
     text = safe_read_text(path)
-    return any(token in text for token in DANGEROUS_TOKENS)
+    return sorted(token for token in DANGEROUS_TOKENS if token in text)
+
+
+def _changed_functions(package_file: Path, source_file: Path) -> list[str]:
+    package_functions = _function_ast_dumps(package_file)
+    source_functions = _function_ast_dumps(source_file)
+    changed: list[str] = []
+    for name, dump in package_functions.items():
+        if source_functions.get(name) != dump:
+            changed.append(name)
+    return sorted(changed)
+
+
+def _function_ast_dumps(path: Path) -> dict[str, str]:
+    try:
+        tree = ast.parse(safe_read_text(path), filename=str(path))
+    except SyntaxError:
+        return {}
+    functions: dict[str, str] = {}
+    class_stack: list[str] = []
+
+    class Visitor(ast.NodeVisitor):
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            class_stack.append(node.name)
+            self.generic_visit(node)
+            class_stack.pop()
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            name = ".".join([*class_stack, node.name]) if class_stack else node.name
+            functions[name] = ast.dump(node, include_attributes=False)
+            self.generic_visit(node)
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            self.visit_FunctionDef(node)
+
+    Visitor().visit(tree)
+    return functions
+
+
+def _supported_source_url(source_url: str) -> bool:
+    return source_url.startswith("https://") and ("github.com/" in source_url or "gitlab.com/" in source_url)
+
+
+def _checkout_version_tag(repo: Path, version: str, timeout_seconds: int) -> bool:
+    for tag in (f"v{version}", version):
+        try:
+            subprocess.run(["git", "-C", str(repo), "fetch", "--depth", "1", "origin", f"refs/tags/{tag}:refs/tags/{tag}"], text=True, capture_output=True, timeout=timeout_seconds, check=False)
+            completed = subprocess.run(["git", "-C", str(repo), "checkout", "--quiet", tag], text=True, capture_output=True, timeout=timeout_seconds, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if completed.returncode == 0:
+            return True
+    return False

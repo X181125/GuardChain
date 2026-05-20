@@ -22,6 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser = subparsers.add_parser("scan", help="Scan a package directory or archive.")
     scan_parser.add_argument("--path", required=True, help="Path to package directory, .tar.gz, or .whl.")
     scan_parser.add_argument("--source", help="Optional source repository path for integrity comparison.")
+    scan_parser.add_argument("--source-auto-fetch", action="store_true", help="Opt in to fetching a source repository hint from package metadata for integrity comparison.")
+    scan_parser.add_argument("--source-fetch-timeout", type=int, default=30, help="Timeout in seconds for --source-auto-fetch git operations.")
     scan_parser.add_argument("--json", dest="json_path", help="Optional JSON report output path.")
     scan_parser.add_argument("--markdown", help="Optional Markdown report output path.")
     scan_parser.add_argument("--sarif", help="Optional SARIF report output path.")
@@ -35,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("--fail-threshold", type=int, help="Return exit code 2 when risk score is greater than or equal to this threshold.")
     scan_parser.add_argument("--offline", action="store_true", default=True, help="Run without network enrichment. This is the default.")
     scan_parser.add_argument("--enrich", action="store_true", help="Reserved opt-in flag for future online metadata enrichment.")
+    _add_dependency_resolution_arguments(scan_parser)
     scan_parser.add_argument("--quiet", action="store_true", help="Suppress terminal report output.")
     scan_parser.add_argument("--verbose", action="store_true", help="Print evidence details.")
     sandbox_parser = subparsers.add_parser("sandbox", help="Run explicit dynamic analysis in a hardened Docker sandbox.")
@@ -42,6 +45,8 @@ def build_parser() -> argparse.ArgumentParser:
     analyze_parser = subparsers.add_parser("analyze", help="Run static analysis, optionally followed by explicit sandbox analysis.")
     analyze_parser.add_argument("--path", required=True, help="Path to package directory or archive.")
     analyze_parser.add_argument("--source", help="Optional source repository path for integrity comparison.")
+    analyze_parser.add_argument("--source-auto-fetch", action="store_true", help="Opt in to fetching a source repository hint from package metadata for integrity comparison.")
+    analyze_parser.add_argument("--source-fetch-timeout", type=int, default=30, help="Timeout in seconds for --source-auto-fetch git operations.")
     analyze_parser.add_argument("--with-sandbox", action="store_true", help="Opt in to dynamic Docker sandbox execution after static scan.")
     analyze_parser.add_argument("--json", dest="json_path", help="Optional JSON report output path.")
     analyze_parser.add_argument("--markdown", help="Optional Markdown report output path.")
@@ -54,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze_parser.add_argument("--sandbox-image", default="guardchain-sandbox:latest")
     analyze_parser.add_argument("--max-files", type=int, default=5000)
     analyze_parser.add_argument("--max-size-mb", type=int, default=100)
+    _add_dependency_resolution_arguments(analyze_parser)
     analyze_parser.add_argument("--quiet", action="store_true")
     analyze_parser.add_argument("--verbose", action="store_true")
     eval_parser = subparsers.add_parser("evaluate", help="Evaluate GuardChain against a labeled dataset.")
@@ -86,6 +92,15 @@ def main(argv: list[str] | None = None) -> int:
                 max_size_mb=args.max_size_mb,
                 strict=args.strict,
                 max_python_file_size_mb=args.max_python_file_size_mb,
+                resolve_deps=args.resolve_deps,
+                dependency_timeout=args.dependency_timeout,
+                dependency_index_url=args.dependency_index_url,
+                dependency_extra_index_url=args.dependency_extra_index_url,
+                dependency_find_links=args.dependency_find_links,
+                dependency_no_index=args.dependency_no_index,
+                dependency_max_packages=args.dependency_max_packages,
+                source_auto_fetch=args.source_auto_fetch,
+                source_fetch_timeout=args.source_fetch_timeout,
             )
         except Exception as exc:
             print(f"guardchain: error: {exc}", file=sys.stderr)
@@ -119,7 +134,21 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "analyze":
         try:
-            static_result = scan(args.path, args.source, max_files=args.max_files, max_size_mb=args.max_size_mb)
+            static_result = scan(
+                args.path,
+                args.source,
+                max_files=args.max_files,
+                max_size_mb=args.max_size_mb,
+                resolve_deps=args.resolve_deps,
+                dependency_timeout=args.dependency_timeout,
+                dependency_index_url=args.dependency_index_url,
+                dependency_extra_index_url=args.dependency_extra_index_url,
+                dependency_find_links=args.dependency_find_links,
+                dependency_no_index=args.dependency_no_index,
+                dependency_max_packages=args.dependency_max_packages,
+                source_auto_fetch=args.source_auto_fetch,
+                source_fetch_timeout=args.source_fetch_timeout,
+            )
         except Exception as exc:
             print(f"guardchain: error: {exc}", file=sys.stderr)
             return 1
@@ -204,6 +233,16 @@ def _add_sandbox_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--verbose", action="store_true")
 
 
+def _add_dependency_resolution_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--resolve-deps", action="store_true", help="Opt in to online dependency closure resolution and dependency artifact scanning.")
+    parser.add_argument("--dependency-timeout", type=int, default=60, help="Dependency resolution/download timeout in seconds.")
+    parser.add_argument("--dependency-index-url", help="Optional package index URL for dependency resolution.")
+    parser.add_argument("--dependency-extra-index-url", action="append", default=[], help="Additional package index URL for dependency resolution.")
+    parser.add_argument("--dependency-find-links", action="append", default=[], help="Directory or HTML page containing dependency artifacts for pip --find-links.")
+    parser.add_argument("--dependency-no-index", action="store_true", help="Resolve/download dependencies without querying package indexes.")
+    parser.add_argument("--dependency-max-packages", type=int, default=50, help="Maximum resolved dependency packages to download and scan.")
+
+
 def _write_scan_outputs(result: ScanResult, args: argparse.Namespace) -> dict[str, str]:
     artifacts: dict[str, str] = {}
     if getattr(args, "json_path", None):
@@ -240,12 +279,18 @@ def _combine_scan_results(static_result: ScanResult, dynamic_result: ScanResult)
         python_files=static_result.python_files,
         dependencies=static_result.dependencies,
         dependency_details=static_result.dependency_details,
+        resolved_dependencies=static_result.resolved_dependencies,
+        dependency_edges=static_result.dependency_edges,
+        dependency_scan_results=static_result.dependency_scan_results,
+        dependency_graph=static_result.dependency_graph,
+        dependency_risk_paths=static_result.dependency_risk_paths,
         metadata=static_result.metadata,
         graph=graph,
         score_breakdown=breakdown,
         confidence=calculate_confidence(findings),
         analysis_stats=stats,
-        analysis_mode="static+dynamic",
+        analysis_features={**static_result.analysis_features, "dynamic_sandbox": True},
+        analysis_mode=f"{static_result.analysis_mode}+dynamic" if "dynamic" not in static_result.analysis_mode else static_result.analysis_mode,
         limitations=[*static_result.limitations, *dynamic_result.limitations],
     )
 

@@ -58,6 +58,7 @@ def _finding(rule_id: str, title: str, severity: str, score: int, event: Dynamic
         score=score,
         confidence=0.95,
         source="dynamic",
+        evidence_strength="runtime_observed",
     )
 
 

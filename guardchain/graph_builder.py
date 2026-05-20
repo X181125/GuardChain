@@ -6,11 +6,18 @@ from pathlib import Path
 from typing import Any
 
 from .ast_analyzer import get_call_name
-from .models import Finding, PackageContext
+from .models import DependencyEdge, Finding, PackageContext
 from .utils import relative_path, safe_read_text
 
+ROOT_DEPENDENCY = "__root__"
 
-def build_behavior_graph(context: PackageContext, findings: list[Finding], dependencies: list[str]) -> dict[str, Any]:
+
+def build_behavior_graph(
+    context: PackageContext,
+    findings: list[Finding],
+    dependencies: list[str],
+    dependency_edges: list[DependencyEdge] | None = None,
+) -> dict[str, Any]:
     nodes: dict[str, dict[str, str]] = {}
     edges: list[dict[str, str]] = []
 
@@ -23,11 +30,21 @@ def build_behavior_graph(context: PackageContext, findings: list[Finding], depen
             edges.append(item)
 
     package_id = f"package:{context.package_name or context.root_path.name}"
+    root_name = context.package_name or context.root_path.name
     node(package_id, "package", context.package_name or context.root_path.name)
     for dependency in dependencies:
         dep_id = f"dependency:{dependency}"
         node(dep_id, "dependency", dependency)
         edge(package_id, dep_id, "depends_on")
+    for dep_edge in dependency_edges or []:
+        parent_name = root_name if dep_edge.parent == ROOT_DEPENDENCY else dep_edge.parent
+        child_name = dep_edge.child
+        parent_id = package_id if parent_name == root_name else f"dependency:{parent_name}"
+        child_id = f"dependency:{child_name}"
+        if parent_id != package_id:
+            node(parent_id, "dependency", parent_name)
+        node(child_id, "dependency", child_name)
+        edge(parent_id, child_id, "direct_depends_on" if parent_id == package_id else "transitive_depends_on")
 
     for path in context.python_files:
         rel = relative_path(path, context.root_path)
@@ -39,9 +56,14 @@ def build_behavior_graph(context: PackageContext, findings: list[Finding], depen
     for finding in findings:
         finding_id = f"finding:{finding.rule_id}:{finding.file_path or 'package'}:{finding.line or 0}"
         node(finding_id, "finding", f"{finding.rule_id} {finding.title}")
-        if finding.file_path:
-            edge(f"file:{finding.file_path}", finding_id, "triggers")
         evidence = finding.evidence if isinstance(finding.evidence, dict) else {}
+        dependency_package = evidence.get("dependency_package")
+        if finding.source == "dependency" and dependency_package:
+            dep_id = f"dependency:{dependency_package}"
+            node(dep_id, "dependency", str(dependency_package))
+            edge(dep_id, finding_id, "triggers")
+        elif finding.file_path:
+            edge(f"file:{finding.file_path}", finding_id, "triggers")
         source = evidence.get("source")
         sink = evidence.get("sink")
         function = evidence.get("function")
@@ -65,6 +87,67 @@ def build_behavior_graph(context: PackageContext, findings: list[Finding], depen
             edge(finding_id, api_id, "reported_by")
 
     return {"nodes": list(nodes.values()), "edges": edges}
+
+
+def build_dependency_graph(root_package: str, edges: list[DependencyEdge], findings: list[Finding] | None = None) -> dict[str, Any]:
+    nodes: dict[str, dict[str, str]] = {}
+    graph_edges: list[dict[str, str]] = []
+
+    def node(node_id: str, node_type: str, label: str | None = None) -> None:
+        nodes.setdefault(node_id, {"id": node_id, "type": node_type, "label": label or node_id})
+
+    def edge(source: str, target: str, edge_type: str) -> None:
+        item = {"source": source, "target": target, "type": edge_type}
+        if item not in graph_edges:
+            graph_edges.append(item)
+
+    package_id = f"package:{root_package}"
+    node(package_id, "package", root_package)
+    for dep_edge in edges:
+        parent_name = root_package if dep_edge.parent == ROOT_DEPENDENCY else dep_edge.parent
+        parent_id = package_id if parent_name == root_package else f"dependency:{parent_name}"
+        child_id = f"dependency:{dep_edge.child}"
+        if parent_id != package_id:
+            node(parent_id, "dependency", parent_name)
+        node(child_id, "dependency", dep_edge.child)
+        edge(parent_id, child_id, "direct_depends_on" if parent_id == package_id else "transitive_depends_on")
+
+    for finding in findings or []:
+        evidence = finding.evidence if isinstance(finding.evidence, dict) else {}
+        dependency_package = evidence.get("dependency_package")
+        if not dependency_package:
+            continue
+        dep_id = f"dependency:{dependency_package}"
+        finding_id = f"finding:{finding.rule_id}:{dependency_package}:{finding.file_path or 'package'}:{finding.line or 0}"
+        node(dep_id, "dependency", str(dependency_package))
+        node(finding_id, "finding", f"{finding.rule_id} {finding.title}")
+        edge(dep_id, finding_id, "triggers")
+    return {"nodes": list(nodes.values()), "edges": graph_edges}
+
+
+def find_dependency_chains(root_package: str, edges: list[DependencyEdge], target_dependency: str) -> list[list[str]]:
+    target = str(target_dependency)
+    adjacency: dict[str, list[str]] = {}
+    for edge in edges:
+        parent = root_package if edge.parent == ROOT_DEPENDENCY else edge.parent
+        adjacency.setdefault(parent, [])
+        if edge.child not in adjacency[parent]:
+            adjacency[parent].append(edge.child)
+    chains: list[list[str]] = []
+
+    def visit(node_name: str, path: list[str]) -> None:
+        if len(path) > 20:
+            return
+        if node_name == target:
+            chains.append(path)
+            return
+        for child in adjacency.get(node_name, []):
+            if child in path:
+                continue
+            visit(child, [*path, child])
+
+    visit(root_package, [root_package])
+    return chains
 
 
 def render_dot(graph: dict[str, Any]) -> str:

@@ -350,6 +350,7 @@ class _TaintVisitor(ast.NodeVisitor):
                     "sink_preview": preview_node(node),
                 },
                 score=score,
+                evidence_strength="taint_confirmed",
             )
         )
 

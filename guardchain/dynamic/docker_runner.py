@@ -79,6 +79,7 @@ def run_sandbox(
                     score=30,
                     confidence=0.95,
                     source="dynamic",
+                    evidence_strength="runtime_observed",
                 )
             )
         elif returncode not in {0, None} and not trace_text:
@@ -93,6 +94,7 @@ def run_sandbox(
                     score=5,
                     confidence=0.8,
                     source="dynamic",
+                    evidence_strength="runtime_observed",
                 )
             )
         return SandboxRunResult(events, findings, stdout, stderr, returncode, trace_text, timed_out=timed_out, command=command)
@@ -134,6 +136,12 @@ def build_sandbox_scan_result(
         score_breakdown=breakdown,
         confidence=calculate_confidence(run_result.findings),
         analysis_mode="dynamic",
+        analysis_features={
+            "dependency_resolution": False,
+            "dependency_scanning": False,
+            "dynamic_sandbox": True,
+            "integrity_comparison": False,
+        },
         analysis_stats={
             "sandbox_mode": mode,
             "sandbox_image": (config or SandboxConfig()).image,

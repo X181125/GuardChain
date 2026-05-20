@@ -69,6 +69,46 @@ class CliTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 2, proc.stderr)
 
+    def test_divide_and_hide_resolves_local_fixture_dependency(self) -> None:
+        with TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            json_path = out / "result.json"
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "guardchain",
+                    "scan",
+                    "--path",
+                    str(PROJECT_ROOT / "samples" / "divide_and_hide" / "root_pkg"),
+                    "--resolve-deps",
+                    "--dependency-no-index",
+                    "--dependency-find-links",
+                    str(PROJECT_ROOT / "samples" / "divide_and_hide" / "dist"),
+                    "--json",
+                    str(json_path),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("root-pkg -> hidden-payload-dep", proc.stdout)
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+        self.assertIn(data["label"], {"SUSPICIOUS", "MALICIOUS"})
+        self.assertTrue(data["dependency_risk_paths"])
+        self.assertTrue(any(item["dependency"] == "hidden-payload-dep" for item in data["dependency_risk_paths"]))
+        dependency_findings = [finding for finding in data["findings"] if finding["source"] == "dependency"]
+        self.assertTrue(any(finding["rule_id"].startswith(("B", "T")) for finding in dependency_findings))
+        self.assertTrue(
+            any(
+                finding["evidence"].get("dependency_chain") == ["root-pkg", "hidden-payload-dep"]
+                and finding["evidence"].get("dependency_version") == "0.1.0"
+                for finding in dependency_findings
+            )
+        )
+
     def test_evaluate_command_writes_json(self) -> None:
         with TemporaryDirectory() as tmp:
             out = Path(tmp)

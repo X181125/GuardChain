@@ -7,8 +7,12 @@ GuardChain never executes untrusted package code.
 - It does not execute package entrypoints.
 - It does not run pyproject build hooks.
 - It does not send network traffic for behavior checks.
+- It does not resolve or download dependencies unless `--resolve-deps` is explicitly passed.
+- It does not fetch source repositories unless `--source-auto-fetch` is explicitly passed.
 
 This guarantee applies to `guardchain scan` and the static phase of `guardchain analyze`.
+
+When `--resolve-deps` is enabled, GuardChain uses already-extracted dependency requirement strings, runs pip in dry-run/report mode for resolution, and downloads resolved artifacts with `--only-binary=:all:`. It does not install the target package path and does not build sdists for dependency scanning.
 
 Dynamic analysis is explicit opt-in:
 

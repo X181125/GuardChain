@@ -63,6 +63,28 @@ class DependencyAnalyzerTests(unittest.TestCase):
         self.assertEqual(details[0].extras, ["security"])
         self.assertIn("python_version", details[0].marker or "")
 
+    def test_common_distribution_import_mapping(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "pyproject.toml").write_text("[project]\nname='x'\ndependencies=['PyYAML==6.0']\n", encoding="utf-8")
+            (root / "pkg.py").write_text("import yaml\n", encoding="utf-8")
+            context = load_package(root)
+            findings, _ = analyze_dependencies(context)
+        rule_ids = {finding.rule_id for finding in findings}
+        self.assertNotIn("D007", rule_ids)
+        self.assertNotIn("D008", rule_ids)
+
+    def test_stdlib_imports_do_not_trigger_dependency_warning(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "pkg.py").write_text(
+                "import email\nimport asyncio\nimport sqlite3\nimport hashlib\nimport ssl\nimport logging\nimport tempfile\nimport shutil\nimport re\nimport configparser\n",
+                encoding="utf-8",
+            )
+            context = load_package(root)
+            findings, _ = analyze_dependencies(context)
+        self.assertNotIn("D007", {finding.rule_id for finding in findings})
+
 
 if __name__ == "__main__":
     unittest.main()

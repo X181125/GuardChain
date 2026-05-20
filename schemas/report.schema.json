@@ -10,6 +10,12 @@
     "risk_score": {"type": "integer", "minimum": 0, "maximum": 100},
     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     "findings": {"type": "array"},
+    "analysis_features": {"type": "object"},
+    "resolved_dependencies": {"type": "array"},
+    "dependency_edges": {"type": "array"},
+    "dependency_graph": {"type": "object"},
+    "dependency_risk_paths": {"type": "array"},
+    "dependency_scan_results": {"type": "array"},
     "score_breakdown": {"type": "array"},
     "tool_version": {"type": "string"},
     "schema_version": {"type": "string"}

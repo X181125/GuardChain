@@ -17,6 +17,8 @@ class SamplesExpectedBehaviorTests(unittest.TestCase):
             ("exfiltration_like_pkg", None, {"rules": {"T001", "B008"}}),
             ("download_execute_like_pkg", None, {"rules": {"B007"}}),
             ("typosquat_like_pkg", "SUSPICIOUS", {"rules": {"M003", "D002"}}),
+            ("divide_and_hide/root_pkg", "BENIGN", {"rules": set(), "max_score": 29}),
+            ("divide_and_hide/hidden_payload_dep", "MALICIOUS", {"rules": {"B006", "T004"}}),
         ]
         for sample, expected_label, expectation in cases:
             with self.subTest(sample=sample):

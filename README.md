@@ -1,6 +1,8 @@
 # GuardChain Python Malware Scanner
 
-GuardChain is a research-grade static and graph-based analysis CLI for detecting suspicious Python packages in a software supply chain setting. It is inspired by the HERCULE paper, "Detecting Python Malware in the Software Supply Chain with Program Analysis", and is designed for coursework, demos, and evidence-driven security research.
+GuardChain is a HERCULE-inspired educational prototype, not a full reimplementation of HERCULE. It is a static, graph-based, and optionally sandbox-assisted CLI for detecting suspicious Python packages in a software supply chain setting, designed for coursework, demos, and evidence-driven security research.
+
+GuardChain intentionally keeps the implementation lightweight: Python AST traversal instead of CodeQL, lightweight taint tracking instead of a full CFG/data-flow database, optional dependency closure instead of ecosystem-scale analysis, and an optional Docker/strace sandbox as an extension.
 
 The scanner never imports or executes the target package. It reads files, parses Python ASTs, extracts metadata and dependencies, and produces an explainable risk score.
 
@@ -11,6 +13,8 @@ The scanner never imports or executes the target package. It reads files, parses
 - `ast_analyzer.py`: detects behavior patterns using Python AST traversal.
 - `taint_analyzer.py`: tracks simple source-to-sink flows inside functions.
 - `dependency_analyzer.py`: extracts dependency names and flags risky dependency patterns.
+- `dependency_resolver.py`: opt-in online dependency closure resolution using pip dry-run reports.
+- `dependency_scanner.py`: opt-in wheel/zip dependency artifact scanning through the static pipeline.
 - `integrity_analyzer.py`: optionally compares distributed package files against a source tree.
 - `graph_builder.py`: creates JSON, Graphviz DOT, and Mermaid behavior graphs.
 - `dynamic/`: optional Docker sandbox, strace parser, and runtime behavior analyzer.
@@ -33,6 +37,8 @@ GuardChain/
 │   ├── setup_analyzer.py                # Static install-time analyzer for risky `setup.py` behavior and custom command classes.
 │   ├── taint_analyzer.py                # Lightweight source-to-sink taint analyzer with simple interprocedural propagation.
 │   ├── dependency_analyzer.py           # Parses dependency declarations and detects URL, VCS, unpinned, suspicious, and typo-like deps.
+│   ├── dependency_resolver.py           # Opt-in pip dry-run dependency closure resolver; disabled by default.
+│   ├── dependency_scanner.py            # Downloads wheel/zip artifacts and scans dependency packages with strict limits.
 │   ├── integrity_analyzer.py            # Compares a distributed package against a source tree using file and AST-level diffs.
 │   ├── graph_builder.py                 # Builds evidence graphs and exports Graphviz DOT and Mermaid formats.
 │   ├── scoring.py                       # Converts findings into deterministic 0-100 risk scores and BENIGN/SUSPICIOUS/MALICIOUS labels.
@@ -59,6 +65,7 @@ GuardChain/
 │       ├── malicious_packages.yaml      # Demo-only suspicious dependency blacklist.
 │       ├── suspicious_domains.yaml      # Suspicious project URL/domain hints.
 │       ├── suspicious_names.yaml        # Suspicious dependency/package name tokens.
+│       ├── import_name_map.yaml         # Common distribution-to-import name mappings such as PyYAML -> yaml.
 │       └── allowlist.yaml               # Reserved allowlist data for reducing noisy detections.
 ├── samples/                             # Safe demo packages used by tests and examples.
 │   ├── benign_pkg/                      # Low-risk package expected to score BENIGN.
@@ -68,6 +75,7 @@ GuardChain/
 │   ├── exfiltration_like_pkg/           # Simulated environment-to-network flow using example.invalid.
 │   ├── download_execute_like_pkg/       # Simulated download, write, and command-execution shape.
 │   ├── typosquat_like_pkg/              # Package/dependency names close to popular packages.
+│   ├── divide_and_hide/                 # Root package plus suspicious dependency payload demo.
 │   └── integrity/                       # Source/dist comparison fixture.
 ├── tests/                               # Unit and integration tests for loader, analyzers, CLI, reports, scoring, and samples.
 ├── docs/                                # Extended documentation for architecture, rules, safety, reports, and analysis modes.
@@ -100,6 +108,7 @@ User input path
   -> setup.py static analysis
   -> Taint analysis
   -> Dependency analysis
+  -> Optional dependency closure resolution and dependency artifact scanning
   -> Optional integrity analysis
   -> Behavior graph builder
   -> Scoring engine
@@ -112,11 +121,13 @@ User input path
 4. `ast_analyzer.py` parses Python files into ASTs, resolves common import aliases, and emits behavior findings such as command execution, network calls, obfuscation, persistence-like paths, and exfiltration-shaped code.
 5. `setup_analyzer.py` gives special static attention to `setup.py`, including top-level dangerous calls, custom install/build/develop classes, and `cmdclass` mappings.
 6. `taint_analyzer.py` tracks simple variable flows from sensitive, network, file-secret, and obfuscation sources into dangerous sinks. It also handles direct function return and parameter wrapper flows.
-7. `dependency_analyzer.py` extracts declared dependencies, compares them with inferred imports, and flags risky dependency declarations.
-8. `integrity_analyzer.py` runs only when `--source` is provided; it compares distributed package files against the source tree and correlates suspicious new or modified files.
-9. `graph_builder.py` creates an evidence graph linking packages, files, functions, imports, API calls, dependencies, findings, and suspicious flows.
-10. `scoring.py` deduplicates findings, applies severity weights and context multipliers, caps the score at 100, and assigns `BENIGN`, `SUSPICIOUS`, or `MALICIOUS`.
-11. `report.py` writes the selected artifacts and keeps the CLI exit code `0` for successful scans unless an explicit fail threshold is requested.
+7. `dependency_analyzer.py` extracts declared dependencies, compares them with inferred imports, applies common import-name mappings, and flags risky dependency declarations.
+8. If `--resolve-deps` is passed, `dependency_resolver.py` asks pip for a dry-run JSON resolution report using declared requirement names/specifiers only. It uses `--only-binary=:all:` by default and reports warnings instead of failing the scan.
+9. If dependency resolution succeeds, `dependency_scanner.py` downloads resolved wheel/zip artifacts with strict limits, scans them statically, and annotates dependency-origin findings with package, version, and chain context.
+10. `integrity_analyzer.py` runs when `--source` is provided, or when `--source-auto-fetch` is explicitly enabled and a supported repository URL can be extracted; it compares distributed package files against the source tree and correlates suspicious new or modified files.
+11. `graph_builder.py` creates an evidence graph linking packages, files, functions, imports, API calls, dependencies, findings, suspicious flows, and dependency risk paths.
+12. `scoring.py` groups duplicate root causes, applies evidence-strength multipliers, caps the score at 100, and assigns `BENIGN`, `SUSPICIOUS`, or `MALICIOUS`.
+13. `report.py` writes the selected artifacts and keeps the CLI exit code `0` for successful scans unless an explicit fail threshold is requested.
 
 ### Dynamic sandbox workflow
 
@@ -168,6 +179,15 @@ python -m guardchain scan --path ./samples/malicious_like_pkg --markdown reports
 python -m guardchain scan --path ./samples/malicious_like_pkg --sarif reports/guardchain.sarif
 python -m guardchain scan --path ./samples/malicious_like_pkg --graph-dot reports/behavior_graph.dot
 python -m guardchain scan --path ./samples/malicious_like_pkg --graph-mermaid reports/behavior_graph.mmd
+python -m guardchain scan \
+  --path ./samples/divide_and_hide/root_pkg \
+  --resolve-deps \
+  --dependency-no-index \
+  --dependency-find-links ./samples/divide_and_hide/dist \
+  --json reports/divide_and_hide.json \
+  --markdown reports/divide_and_hide.md \
+  --graph-mermaid reports/divide_and_hide.mmd
+python -m guardchain scan --path ./dist_pkg --source-auto-fetch
 python -m guardchain scan --path ./samples/malicious_like_pkg --max-files 5000 --max-size-mb 100
 python -m guardchain scan --path ./samples/malicious_like_pkg --fail-on-malicious
 python -m guardchain sandbox --path ./samples/setup_time_malicious_like_pkg --mode setup-py-install --json reports/dynamic.json --trace reports/trace.log
@@ -177,6 +197,8 @@ python -m guardchain rules list
 python -m guardchain rules validate
 guardchain scan --path ./samples/malicious_like_pkg
 ```
+
+For deterministic dependency-closure demos, use the local fixture wheel in `samples/divide_and_hide/dist` or a controlled package index. Resolver and download failures are reported as limitations instead of aborting the scan.
 
 Dynamic sandbox mode requires Docker and a sandbox image with `strace`:
 
@@ -253,6 +275,8 @@ Dependency:
 - `D008`: Declared but not imported dependency.
 - `D009`: Suspicious dependency name pattern.
 
+Dependency closure scanning is not part of the default offline scan. It is enabled only with `--resolve-deps`, uses pip dry-run resolution for declared requirements, prefers binary wheels, and records unresolved packages as warnings.
+
 Integrity:
 
 - `I001`: New Python file exists in package but not source repo.
@@ -281,6 +305,7 @@ Dynamic:
 - `samples/exfiltration_like_pkg`: safe `os.environ` to `requests.post` flow, expected `MALICIOUS` or `SUSPICIOUS`.
 - `samples/download_execute_like_pkg`: safe download-write-command shape, expected `MALICIOUS`.
 - `samples/typosquat_like_pkg`: typo-like package/dependency names.
+- `samples/divide_and_hide`: benign root package plus a separate suspicious dependency package.
 - `samples/integrity`: source/dist comparison demo.
 
 The malicious-like sample is deliberately harmless. It contains code patterns for static detection, but the scanner does not execute the sample package.
@@ -290,7 +315,11 @@ The malicious-like sample is deliberately harmless. It contains code patterns fo
 - The scanner does not run `setup.py`.
 - The scanner does not import the scanned package.
 - The scanner does not execute payloads.
-- The scanner does not send network requests.
+- The default scanner does not send network requests.
+- Dependency closure resolution is disabled by default and only runs with `--resolve-deps`.
+- Dependency resolution never installs the target package path; it uses declared dependency requirement strings only.
+- Dependency artifact scanning prefers binary wheels and skips unresolved packages instead of building sdists.
+- Source repository fetching is disabled by default and only runs with `--source-auto-fetch`.
 - Archive extraction blocks absolute paths and `../` traversal entries.
 - Dynamic analysis is explicit opt-in through `sandbox` or `analyze --with-sandbox`.
 - The default Docker sandbox uses no network, read-only root filesystem, dropped capabilities, non-root user, resource limits, and timeout.
@@ -300,7 +329,9 @@ The malicious-like sample is deliberately harmless. It contains code patterns fo
 
 - The tool is static-only and cannot detect every runtime behavior.
 - Rule-based scoring can produce false positives and false negatives.
-- Dependency parsing is lightweight and does not resolve the full dependency graph like `pip`.
+- Dependency closure is optional and bounded; it is not a full ecosystem-scale analysis.
+- Dependency relationships depend on pip report metadata and may be partial.
+- GuardChain uses Python AST and lightweight taint analysis rather than CodeQL or a full data-flow database.
 - It is not a replacement for antivirus, sandboxing, or human review.
 - Dynamic results depend on Docker, the sandbox image, and the runtime paths exercised during analysis.
 - It does not analyze C/C++ extensions or binary payloads.

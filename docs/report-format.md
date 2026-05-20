@@ -12,6 +12,11 @@ JSON reports include:
 - `metadata`
 - `dependencies`
 - `dependency_details`
+- `resolved_dependencies`
+- `dependency_edges`
+- `dependency_graph`
+- `dependency_risk_paths`
+- `dependency_scan_results`
 - `findings`
 - `static_findings`
 - `dynamic_findings`
@@ -19,11 +24,14 @@ JSON reports include:
 - `graph`
 - `graphs`
 - `analysis_stats`
+- `analysis_features`
 - `tool_version`
 - `schema_version`
 - `analysis_mode`
 - `limitations`
 
-SARIF reports use SARIF 2.1.0 and include GuardChain rule metadata, result locations, severity mapping, and evidence properties.
+Each finding includes `evidence_strength`, which distinguishes syntactic pattern matches from correlated patterns, taint-confirmed flows, runtime observations, integrity-confirmed findings, and dependency-confirmed findings.
 
-Markdown reports are intended for human triage and include summary, risk score, score breakdown, findings, evidence paths, metadata, dependencies, integrity notes, graph notes, and limitations.
+SARIF reports use SARIF 2.1.0 and include GuardChain rule metadata, result locations, severity mapping, evidence strength, and evidence properties.
+
+Markdown reports are intended for human triage and include summary, analysis mode, evidence strength summary, risk score, score breakdown, findings, dependency risk paths, root cause groups, evidence paths, metadata, dependencies, integrity notes, graph notes, and limitations.

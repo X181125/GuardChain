@@ -3,6 +3,7 @@ from __future__ import annotations
 import configparser
 import re
 import ast
+import sys
 from email.parser import Parser
 from importlib.resources import files
 
@@ -10,12 +11,12 @@ import yaml
 from packaging.requirements import InvalidRequirement, Requirement
 
 from .models import Dependency, Finding, PackageContext
-from .utils import find_similar_popular, is_pinned_requirement, relative_path, safe_read_text, strip_requirement_name
+from .utils import find_similar_popular, is_pinned_requirement, normalize_package_name, relative_path, safe_read_text, strip_requirement_name
 
 URL_MARKERS = ("git+http", "http://", "https://")
 VCS_MARKERS = ("git+", "hg+", "svn+", "bzr+")
 LOCAL_MARKERS = ("./", "../", "/", "file:")
-STD_LIB_OR_LOCAL = {
+FALLBACK_STDLIB_MODULES = {
     "os",
     "sys",
     "pathlib",
@@ -61,6 +62,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     line=entry.line,
                     evidence=entry.raw,
                     score=60,
+                    evidence_strength="dependency_confirmed",
                 ),
             )
         similar = find_similar_popular(normalized)
@@ -78,6 +80,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     line=entry.line,
                     evidence=entry.raw,
                     score=30,
+                    evidence_strength="dependency_confirmed",
                 ),
             )
         if any(marker in entry.raw.lower() for marker in URL_MARKERS):
@@ -94,6 +97,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     line=entry.line,
                     evidence=entry.raw,
                     score=20,
+                    evidence_strength="dependency_confirmed",
                 ),
             )
         if entry.raw.strip().startswith(LOCAL_MARKERS):
@@ -110,6 +114,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     line=entry.line,
                     evidence=entry.raw,
                     score=15,
+                    evidence_strength="dependency_confirmed",
                 ),
             )
         if any(marker in entry.raw.lower() for marker in VCS_MARKERS):
@@ -126,6 +131,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     line=entry.line,
                     evidence=entry.raw,
                     score=15,
+                    evidence_strength="dependency_confirmed",
                 ),
             )
         if any(token in normalized for token in _suspicious_name_tokens()):
@@ -142,6 +148,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     line=entry.line,
                     evidence=entry.raw,
                     score=15,
+                    evidence_strength="dependency_confirmed",
                 ),
             )
         if not is_pinned_requirement(entry.raw) and not any(marker in entry.raw.lower() for marker in URL_MARKERS):
@@ -158,11 +165,13 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     line=entry.line,
                     evidence=entry.raw,
                     score=5,
+                    evidence_strength="dependency_confirmed",
                 ),
             )
     imported = _infer_imports(context)
-    declared = {dep.lower().replace("_", "-") for dep in dependencies}
-    for package in sorted(imported - declared):
+    declared = {normalize_package_name(dep) for dep in dependencies}
+    declared_imports = _declared_import_names(declared)
+    for package in sorted(imported - declared_imports):
         findings.append(
             Finding(
                 rule_id="D007",
@@ -172,10 +181,13 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                 message="Package appears to import a third-party module that is not declared as a dependency",
                 evidence={"import": package},
                 score=5,
+                evidence_strength="dependency_confirmed",
             )
         )
-    for package in sorted(declared - imported):
+    for package in sorted(declared):
         if package in _known_malicious_packages():
+            continue
+        if _allowed_import_names(package) & imported:
             continue
         findings.append(
             Finding(
@@ -186,6 +198,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                 message="Dependency is declared but not imported by scanned Python files",
                 evidence={"dependency": package},
                 score=3,
+                evidence_strength="dependency_confirmed",
             )
         )
     return findings, dependencies
@@ -352,7 +365,9 @@ def _infer_imports(context: PackageContext) -> set[str]:
                     imports.add(alias.name.split(".")[0].replace("_", "-").lower())
             elif isinstance(node, ast.ImportFrom) and node.module:
                 imports.add(node.module.split(".")[0].replace("_", "-").lower())
-    return {name for name in imports if name and name not in STD_LIB_OR_LOCAL and name not in {local.replace("_", "-").lower() for local in local_names}}
+    stdlib_or_local = _stdlib_modules() | {"setuptools"}
+    local_normalized = {normalize_package_name(local) for local in local_names}
+    return {name for name in imports if name and name not in stdlib_or_local and name not in local_normalized}
 
 
 def _append_once(findings: list[Finding], seen: set[tuple[str, str, str]], finding: Finding) -> None:
@@ -371,3 +386,32 @@ def _known_malicious_packages() -> set[str]:
 def _suspicious_name_tokens() -> set[str]:
     data = yaml.safe_load(files("guardchain.data").joinpath("suspicious_names.yaml").read_text(encoding="utf-8")) or {}
     return {str(item).lower() for item in data.get("tokens", [])}
+
+
+def _stdlib_modules() -> set[str]:
+    names = getattr(sys, "stdlib_module_names", None)
+    if names:
+        return {normalize_package_name(name.split(".")[0]) for name in names} | FALLBACK_STDLIB_MODULES
+    return set(FALLBACK_STDLIB_MODULES)
+
+
+def _declared_import_names(declared: set[str]) -> set[str]:
+    imports: set[str] = set()
+    for package in declared:
+        imports.update(_allowed_import_names(package))
+    return imports
+
+
+def _allowed_import_names(package: str) -> set[str]:
+    normalized = normalize_package_name(package)
+    mapping = _import_name_map()
+    return {normalized, *mapping.get(normalized, set())}
+
+
+def _import_name_map() -> dict[str, set[str]]:
+    data = yaml.safe_load(files("guardchain.data").joinpath("import_name_map.yaml").read_text(encoding="utf-8")) or {}
+    mapping: dict[str, set[str]] = {}
+    for distribution, imports in data.items():
+        values = imports if isinstance(imports, list) else []
+        mapping[normalize_package_name(str(distribution))] = {normalize_package_name(str(name)) for name in values}
+    return mapping

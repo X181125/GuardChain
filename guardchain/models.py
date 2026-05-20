@@ -21,6 +21,7 @@ class Finding:
     function: str | None = None
     tags: list[str] = field(default_factory=list)
     source: str = "static"
+    evidence_strength: str = "pattern"
 
     @property
     def description(self) -> str:
@@ -93,6 +94,43 @@ class ScoreItem:
     file: str | None = None
     line: int | None = None
     confidence: float = 1.0
+    root_key: tuple[str, str | None, int | None, str] | None = None
+
+
+@dataclass
+class ResolvedDependency:
+    name: str
+    version: str | None
+    requested_by: list[str]
+    direct: bool
+    download_info: dict[str, object] | None = None
+    metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
+class DependencyEdge:
+    parent: str
+    child: str
+    requirement: str | None = None
+
+
+@dataclass
+class DownloadedDependency:
+    name: str
+    version: str | None
+    path: str | None = None
+    size_bytes: int = 0
+    warning: str | None = None
+
+
+@dataclass
+class DependencyScanResult:
+    dependency: ResolvedDependency
+    findings: list[Finding]
+    score: int = 0
+    label: str = "BENIGN"
+    artifact_path: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -135,10 +173,16 @@ class ScanResult:
     dependencies: list[str]
     metadata: dict[str, Any] = field(default_factory=dict)
     dependency_details: list[Dependency] = field(default_factory=list)
+    resolved_dependencies: list[ResolvedDependency] = field(default_factory=list)
+    dependency_edges: list[DependencyEdge] = field(default_factory=list)
+    dependency_scan_results: list[DependencyScanResult] = field(default_factory=list)
+    dependency_graph: dict[str, Any] = field(default_factory=dict)
+    dependency_risk_paths: list[dict[str, Any]] = field(default_factory=list)
     graph: dict[str, Any] | BehaviorGraph | None = None
     score_breakdown: list[ScoreItem] = field(default_factory=list)
     confidence: float = 0.0
     analysis_stats: dict[str, Any] = field(default_factory=dict)
+    analysis_features: dict[str, bool] = field(default_factory=dict)
     schema_version: str = "1.0"
     tool_version: str = "0.1.0"
     analysis_mode: str = "static"
@@ -163,8 +207,14 @@ class ScanResult:
         data["findings"] = [finding.to_dict() for finding in self.findings]
         data["score_breakdown"] = [dataclass_to_dict(item) for item in self.score_breakdown]
         data["dependency_details"] = [dataclass_to_dict(item) for item in self.dependency_details]
+        data["resolved_dependencies"] = [dataclass_to_dict(item) for item in self.resolved_dependencies]
+        data["dependency_edges"] = [dataclass_to_dict(item) for item in self.dependency_edges]
+        data["dependency_scan_results"] = [dataclass_to_dict(item) for item in self.dependency_scan_results]
         data["graph"] = dataclass_to_dict(self.graph)
         data["graphs"] = {"behavior": data["graph"]}
+        data["dependency_graph"] = dataclass_to_dict(self.dependency_graph)
+        data["dependency_risk_paths"] = dataclass_to_dict(self.dependency_risk_paths)
+        data["analysis_features"] = dict(self.analysis_features)
         data["static_findings"] = [finding.to_dict() for finding in self.findings if finding.source != "dynamic"]
         data["dynamic_findings"] = [finding.to_dict() for finding in self.findings if finding.source == "dynamic"]
         data["risk_score"] = self.risk_score

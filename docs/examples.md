@@ -16,6 +16,20 @@ Run integrity comparison:
 python -m guardchain scan --path ./samples/integrity/dist_pkg --source ./samples/integrity/source_repo
 ```
 
+Opt in to dependency closure analysis:
+
+```bash
+python -m guardchain scan --path ./samples/divide_and_hide/root_pkg \
+  --resolve-deps \
+  --dependency-no-index \
+  --dependency-find-links ./samples/divide_and_hide/dist \
+  --json reports/divide_and_hide.json \
+  --markdown reports/divide_and_hide.md \
+  --graph-mermaid reports/divide_and_hide.mmd
+```
+
+For deterministic coursework demos, use the local fixture wheel in `samples/divide_and_hide/dist`, mock pip in tests, or point dependency resolution at a controlled package index containing the fixture dependency.
+
 Evaluate a labeled dataset:
 
 ```bash

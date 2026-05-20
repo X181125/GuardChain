@@ -246,6 +246,7 @@ class _FileAnalyzer(ast.NodeVisitor):
                     45,
                     "Encoded or obfuscated content may be dynamically executed",
                     self.hits["obfuscation"][:1] + self.hits["dynamic"][:1],
+                    evidence_strength="correlated_pattern",
                 )
             )
         if self.hits["network"] and self.hits["file_write"] and (self.hits["os_command"] or self.hits["dynamic"]):
@@ -257,6 +258,7 @@ class _FileAnalyzer(ast.NodeVisitor):
                     50,
                     "Possible download-and-execute behavior detected",
                     self.hits["network"][:1] + self.hits["file_write"][:1] + (self.hits["os_command"] or self.hits["dynamic"])[:1],
+                    evidence_strength="correlated_pattern",
                 )
             )
         if self.hits["sensitive"] and self.hits["network_post"]:
@@ -268,6 +270,7 @@ class _FileAnalyzer(ast.NodeVisitor):
                     50,
                     "Possible data exfiltration behavior detected",
                     self.hits["sensitive"][:1] + self.hits["network_post"][:1],
+                    evidence_strength="correlated_pattern",
                 )
             )
         if self.hits["suspicious_import"]:
@@ -288,6 +291,7 @@ class _FileAnalyzer(ast.NodeVisitor):
                         file_path=self.rel_path,
                         evidence={"function": function, "patterns": sorted(kinds)},
                         score=50,
+                        evidence_strength="correlated_pattern",
                     )
                 )
         return findings
@@ -309,7 +313,16 @@ class _FileAnalyzer(ast.NodeVisitor):
         function = self.current_function[-1] if self.current_function else "<module>"
         self.function_hits.setdefault(function, set()).add(kind)
 
-    def _finding(self, rule_id: str, title: str, severity: str, score: int, message: str, hits: list[_Hit]) -> Finding:
+    def _finding(
+        self,
+        rule_id: str,
+        title: str,
+        severity: str,
+        score: int,
+        message: str,
+        hits: list[_Hit],
+        evidence_strength: str = "pattern",
+    ) -> Finding:
         line_numbers = [hit.line for hit in hits if hit.line is not None]
         columns = [hit.column for hit in hits if hit.column is not None]
         evidence = {
@@ -328,6 +341,7 @@ class _FileAnalyzer(ast.NodeVisitor):
             column=min(columns) if columns else None,
             evidence=evidence,
             score=score,
+            evidence_strength=evidence_strength,
         )
 
     def _qualified_function_name(self, name: str) -> str:

@@ -1,0 +1,9 @@
+[project]
+name = "root-pkg"
+version = "0.1.0"
+description = "Benign root package used to demonstrate dependency-chain scanning."
+authors = [{ name = "GuardChain Demo" }]
+dependencies = ["hidden-payload-dep==0.1.0"]
+
+[project.urls]
+Repository = "https://example.com/root-pkg/source"
