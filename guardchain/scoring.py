@@ -126,6 +126,9 @@ def _multiplier(finding: Finding) -> tuple[float, str]:
     if finding.file_path and finding.file_path.endswith("setup.py") and finding.category == "behavior":
         multiplier *= 1.5
         reasons.append("dangerous behavior in setup.py")
+    if finding.category == "setup" and finding.rule_id in {"S001", "S004", "S006"}:
+        multiplier *= 1.2
+        reasons.append("install-time execution path")
     if finding.category == "taint" and strength != "taint_confirmed":
         multiplier *= 1.5
         reasons.append("taint-confirmed behavior")
@@ -140,7 +143,7 @@ def _multiplier(finding: Finding) -> tuple[float, str]:
 
 def _behavior_family(finding: Finding) -> str:
     rule = finding.rule_id.upper()
-    if rule in {"B002", "S001"}:
+    if rule in {"B002", "B014", "S001", "T003", "T007"}:
         return "command_execution"
     if rule in {"B001", "B006", "S004", "T004", "T006"}:
         return "dynamic_execution"
@@ -150,6 +153,10 @@ def _behavior_family(finding: Finding) -> str:
         return "obfuscation"
     if rule in {"B008", "T001", "T005"}:
         return "exfiltration"
+    if rule in {"B013"}:
+        return "import_time_side_effect"
+    if rule in {"T008"}:
+        return "suspicious_file_write"
     if rule.startswith("S"):
         return "setup_install_behavior"
     if rule.startswith("D"):

@@ -8,7 +8,8 @@
     "M006": ["Unusual version pattern", "LOW", 5],
     "M007": ["Missing author/contact information", "LOW", 5],
     "M008": ["Suspicious project URL domain", "MEDIUM", 15],
-    "M009": ["Metadata mismatch across files", "MEDIUM", 15]
+    "M009": ["Metadata mismatch across files", "MEDIUM", 15],
+    "M010": ["Custom build backend", "MEDIUM", 15]
   },
   "behavior": {
     "B001": ["Dynamic code execution", "HIGH", 25],
@@ -22,14 +23,17 @@
     "B009": ["Suspicious import", "LOW", 5],
     "B010": ["Persistence-like behavior", "HIGH", 30],
     "B011": ["Suspicious binary/script drop", "HIGH", 30],
-    "B012": ["Remote-command-like pattern", "CRITICAL", 50]
+    "B012": ["Remote-command-like pattern", "CRITICAL", 50],
+    "B013": ["Import-time side effect", "HIGH", 25],
+    "B014": ["Shell-enabled subprocess execution", "CRITICAL", 45]
   },
   "setup": {
     "S001": ["Dangerous top-level setup.py behavior", "CRITICAL", 50],
     "S002": ["Custom install/build/develop command", "HIGH", 30],
     "S003": ["setup.py network access", "HIGH", 30],
     "S004": ["setup.py obfuscated dynamic execution", "CRITICAL", 50],
-    "S005": ["setup.py modifies environment or files", "MEDIUM", 15]
+    "S005": ["setup.py modifies environment or files", "MEDIUM", 15],
+    "S006": ["Custom setup command contains suspicious behavior", "CRITICAL", 45]
   },
   "taint": {
     "T001": ["Sensitive source flows into network sink", "HIGH", 30],
@@ -38,7 +42,8 @@
     "T004": ["Obfuscation source flows into dynamic execution", "CRITICAL", 50],
     "T005": ["Local file secret flows into network sink", "HIGH", 30],
     "T006": ["Network source flows into dynamic execution", "CRITICAL", 50],
-    "T007": ["Sensitive source flows into command execution", "HIGH", 30]
+    "T007": ["Sensitive source flows into command execution", "HIGH", 30],
+    "T008": ["Sensitive source flows into suspicious file write", "HIGH", 30]
   },
   "dependency": {
     "D001": ["Known suspicious demo dependency", "CRITICAL", 60],
@@ -49,7 +54,8 @@
     "D006": ["Local path dependency", "MEDIUM", 15],
     "D007": ["Imported but not declared", "LOW", 5],
     "D008": ["Declared but not imported", "LOW", 5],
-    "D009": ["Suspicious dependency name pattern", "MEDIUM", 15]
+    "D009": ["Suspicious dependency name pattern", "MEDIUM", 15],
+    "D010": ["Editable dependency", "MEDIUM", 15]
   },
   "integrity": {
     "I001": ["New Python file not present in source repo", "MEDIUM", 20],

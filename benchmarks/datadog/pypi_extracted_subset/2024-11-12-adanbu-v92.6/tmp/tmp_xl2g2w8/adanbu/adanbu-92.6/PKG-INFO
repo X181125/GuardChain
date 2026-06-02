@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: Adanbu
+Version: 92.6
+Summary: 321
+Author: 123
+Author-email: xxx@outlook.com
+Description-Content-Type: text/markdown
+Requires-Dist: requests
+Requires-Dist: psutil
+
+None

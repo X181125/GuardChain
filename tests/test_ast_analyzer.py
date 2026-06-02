@@ -66,6 +66,36 @@ ur.urlopen("http://example.invalid")
         self.assertIn("requests.post", evidence)
         self.assertIn("urllib.request.urlopen", evidence)
 
+    def test_indirect_and_assigned_call_resolution(self) -> None:
+        code = """
+import importlib
+import os
+import subprocess
+
+cmd = os.system
+runner = cmd
+runner("echo test")
+getattr(subprocess, "run")(["echo", "test"])
+__import__("os").popen("echo test")
+module = importlib.import_module("subprocess")
+module.Popen(["echo", "test"])
+subprocess.run("echo test", shell=True)
+"""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "pkg.py"
+            path.write_text(code, encoding="utf-8")
+            context = PackageContext(root, "pkg", [path], [], [], None, None)
+            findings = analyze_ast(context)
+        rule_ids = {finding.rule_id for finding in findings}
+        evidence = " ".join(str(finding.evidence) for finding in findings)
+        self.assertIn("B002", rule_ids)
+        self.assertIn("B014", rule_ids)
+        self.assertIn("os.system", evidence)
+        self.assertIn("subprocess.run", evidence)
+        self.assertIn("os.popen", evidence)
+        self.assertIn("subprocess.Popen", evidence)
+
     def test_compile_os_system_and_syntax_error(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

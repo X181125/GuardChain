@@ -1,0 +1,51 @@
+Metadata-Version: 2.4
+Name: aet-test
+Version: 1.0.1
+Summary: Lightweight helpers for Azure environment validation and connectivity checks.
+Home-page: https://github.com/aet-contrib/aet-test
+Author: AET Contributors
+Author-email: aet-contrib@outlook.com
+License: MIT
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license
+Dynamic: requires-python
+Dynamic: summary
+
+# aet-test
+
+Lightweight helpers for Azure environment validation and connectivity checks.
+
+## Features
+
+- Validate Azure endpoint reachability
+- DNS resolution diagnostics
+- Environment fingerprinting for CI/CD runners
+
+## Installation
+
+```bash
+pip install aet-test
+```
+
+## Quick Start
+
+```python
+from aet_test import env_info
+
+print(env_info())
+```
+
+## License
+
+MIT

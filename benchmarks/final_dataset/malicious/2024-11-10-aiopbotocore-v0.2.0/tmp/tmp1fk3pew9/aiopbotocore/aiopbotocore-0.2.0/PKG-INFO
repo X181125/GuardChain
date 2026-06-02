@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: aiopbotocore
+Version: 0.2.0
+Summary: Linux development package
+Author: Sanchez Joseph
+Author-email: sanchezjosephine@gov.org
+Requires-Dist: aiobotocore

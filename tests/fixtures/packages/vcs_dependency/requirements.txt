@@ -1,0 +1,1 @@
+git+https://example.invalid/example/repo.git

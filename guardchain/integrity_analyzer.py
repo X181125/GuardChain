@@ -3,13 +3,76 @@ from __future__ import annotations
 import ast
 import re
 import subprocess
+from dataclasses import dataclass, field
 from pathlib import Path
 
+from .call_resolver import CallResolver
 from .models import Finding
 from .utils import relative_path, safe_read_text
 
 SUSPICIOUS_SCRIPT_EXTENSIONS = {".exe", ".dll", ".so", ".bat", ".ps1", ".sh", ".scr"}
-DANGEROUS_TOKENS = {"subprocess.", "os.system", "exec(", "eval(", "requests.post", "socket.socket", "base64.b64decode"}
+DANGEROUS_TOKENS = {
+    "subprocess.",
+    "os.system",
+    "os.popen",
+    "exec(",
+    "eval(",
+    "compile(",
+    "requests.post",
+    "requests.put",
+    "httpx.post",
+    "socket.socket",
+    "base64.b64decode",
+    "marshal.loads",
+}
+SUSPICIOUS_CALLS = {
+    "eval",
+    "exec",
+    "compile",
+    "execfile",
+    "runpy.run_path",
+    "runpy.run_module",
+    "types.FunctionType",
+    "os.system",
+    "os.popen",
+    "os.execl",
+    "os.execv",
+    "os.execve",
+    "os.spawnl",
+    "os.spawnv",
+    "pty.spawn",
+    "subprocess.run",
+    "subprocess.Popen",
+    "subprocess.call",
+    "subprocess.check_call",
+    "subprocess.check_output",
+    "subprocess.getoutput",
+    "commands.getoutput",
+    "requests.post",
+    "requests.put",
+    "requests.request",
+    "urllib.request.urlopen",
+    "socket.socket",
+    "socket.send",
+    "socket.sendall",
+    "httpx.post",
+    "httpx.request",
+    "base64.b64decode",
+    "marshal.loads",
+    "zlib.decompress",
+}
+
+
+@dataclass
+class _FileSummary:
+    imports: set[str] = field(default_factory=set)
+    functions: set[str] = field(default_factory=set)
+    classes: set[str] = field(default_factory=set)
+    calls: set[str] = field(default_factory=set)
+    top_level_calls: set[str] = field(default_factory=set)
+    suspicious_calls: set[str] = field(default_factory=set)
+    suspicious_top_level_calls: set[str] = field(default_factory=set)
+    suspicious_strings: set[str] = field(default_factory=set)
 
 
 def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list[Finding]:
@@ -26,7 +89,8 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
         source_file = source_root / rel
         if not source_file.exists():
             dangerous_tokens = _dangerous_tokens(package_file)
-            dangerous = bool(dangerous_tokens)
+            package_summary = _summarize_python_file(package_file)
+            dangerous = bool(dangerous_tokens or package_summary.suspicious_calls or package_summary.suspicious_strings)
             findings.append(
                 Finding(
                     rule_id="I001",
@@ -35,7 +99,13 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                     category="integrity",
                     message="Python file exists in distributed package but not in source repository",
                     file_path=rel.as_posix(),
-                    evidence={"dangerous_behavior": dangerous, "dangerous_tokens": dangerous_tokens},
+                    evidence={
+                        "dangerous_behavior": dangerous,
+                        "dangerous_tokens": dangerous_tokens,
+                        "suspicious_calls": sorted(package_summary.suspicious_calls),
+                        "top_level_calls": sorted(package_summary.top_level_calls),
+                        "imports": sorted(package_summary.imports),
+                    },
                     score=30 if dangerous else 20,
                     evidence_strength="integrity_confirmed",
                 )
@@ -59,7 +129,12 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
             dangerous_tokens = _dangerous_tokens(package_file)
             source_tokens = _dangerous_tokens(source_file)
             new_dangerous_tokens = sorted(set(dangerous_tokens) - set(source_tokens))
-            dangerous = bool(dangerous_tokens)
+            package_summary = _summarize_python_file(package_file)
+            source_summary = _summarize_python_file(source_file)
+            added_suspicious_calls = sorted(package_summary.suspicious_calls - source_summary.suspicious_calls)
+            added_imports = sorted(package_summary.imports - source_summary.imports)
+            added_top_level_calls = sorted(package_summary.top_level_calls - source_summary.top_level_calls)
+            dangerous = bool(new_dangerous_tokens or added_suspicious_calls)
             findings.append(
                 Finding(
                     rule_id="I002",
@@ -73,6 +148,10 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                         "changed_functions": _changed_functions(package_file, source_file),
                         "dangerous_tokens": dangerous_tokens,
                         "new_dangerous_tokens": new_dangerous_tokens,
+                        "added_imports": added_imports,
+                        "added_suspicious_calls": added_suspicious_calls,
+                        "added_top_level_calls": added_top_level_calls,
+                        "top_level_behavior": bool(package_summary.suspicious_top_level_calls - source_summary.suspicious_top_level_calls),
                     },
                     score=25 if dangerous else 15,
                     evidence_strength="integrity_confirmed",
@@ -87,7 +166,12 @@ def analyze_integrity(package_root: str | Path, source_root: str | Path) -> list
                         category="integrity",
                         message="Modified Python file differs from source repository and contains dangerous behavior",
                         file_path=relative_path(package_file, package_root),
-                        evidence={"dangerous_behavior": True, "integrity_rule": "I002"},
+                        evidence={
+                            "dangerous_behavior": True,
+                            "integrity_rule": "I002",
+                            "added_suspicious_calls": added_suspicious_calls,
+                            "new_dangerous_tokens": new_dangerous_tokens,
+                        },
                         score=30,
                         evidence_strength="integrity_confirmed",
                     )
@@ -195,7 +279,8 @@ def _strip_docstrings(node: ast.AST) -> None:
 
 
 def _contains_dangerous_behavior(path: Path) -> bool:
-    return bool(_dangerous_tokens(path))
+    summary = _summarize_python_file(path)
+    return bool(_dangerous_tokens(path) or summary.suspicious_calls or summary.suspicious_strings)
 
 
 def _dangerous_tokens(path: Path) -> list[str]:
@@ -237,6 +322,80 @@ def _function_ast_dumps(path: Path) -> dict[str, str]:
 
     Visitor().visit(tree)
     return functions
+
+
+def _summarize_python_file(path: Path) -> _FileSummary:
+    try:
+        tree = ast.parse(safe_read_text(path), filename=str(path))
+    except SyntaxError:
+        return _FileSummary(suspicious_strings=set(_dangerous_tokens(path)))
+    _strip_docstrings(tree)
+    summary = _FileSummary()
+    resolver = CallResolver()
+    function_stack: list[str] = []
+    class_stack: list[str] = []
+
+    class Visitor(ast.NodeVisitor):
+        def visit_Import(self, node: ast.Import) -> None:
+            resolver.record_import(node)
+            for alias in node.names:
+                summary.imports.add(alias.name)
+            self.generic_visit(node)
+
+        def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+            resolver.record_import_from(node)
+            module = node.module or ""
+            if module:
+                summary.imports.add(module)
+            self.generic_visit(node)
+
+        def visit_Assign(self, node: ast.Assign) -> None:
+            for target in node.targets:
+                resolver.record_assignment(target, node.value)
+            self.generic_visit(node)
+
+        def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+            if node.value:
+                resolver.record_assignment(node.target, node.value)
+            self.generic_visit(node)
+
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            name = ".".join([*class_stack, node.name]) if class_stack else node.name
+            summary.classes.add(name)
+            class_stack.append(node.name)
+            self.generic_visit(node)
+            class_stack.pop()
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            name = ".".join([*class_stack, node.name]) if class_stack else node.name
+            summary.functions.add(name)
+            function_stack.append(name)
+            self.generic_visit(node)
+            function_stack.pop()
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            self.visit_FunctionDef(node)
+
+        def visit_Call(self, node: ast.Call) -> None:
+            call = resolver.resolve(node.func)
+            if call:
+                summary.calls.add(call)
+                if not function_stack and not class_stack:
+                    summary.top_level_calls.add(call)
+                if call in SUSPICIOUS_CALLS:
+                    summary.suspicious_calls.add(call)
+                    if not function_stack and not class_stack:
+                        summary.suspicious_top_level_calls.add(call)
+            self.generic_visit(node)
+
+        def visit_Constant(self, node: ast.Constant) -> None:
+            if isinstance(node.value, str):
+                for token in DANGEROUS_TOKENS:
+                    if token in node.value:
+                        summary.suspicious_strings.add(token)
+
+    Visitor().visit(tree)
+    return summary
 
 
 def _supported_source_url(source_url: str) -> bool:

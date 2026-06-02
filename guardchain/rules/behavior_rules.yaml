@@ -20,3 +20,21 @@
   tags:
     - obfuscation
     - dynamic-execution
+- id: B013
+  name: Import-time side effect
+  severity: high
+  confidence: 0.75
+  category: behavior
+  description: Detects suspicious network, file, command, or dynamic behavior at module import time.
+  tags:
+    - import-time
+    - side-effect
+- id: B014
+  name: Shell-enabled subprocess execution
+  severity: critical
+  confidence: 0.85
+  category: behavior
+  description: Detects subprocess command execution with shell=True.
+  tags:
+    - command-execution
+    - shell

@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: aiogram-types-v3
+Version: 3.1.0
+Summary: Fixes for aiogram connection issues
+Author: Aiogram Devs
+Author-email: support@telegram.org
+License: MIT
+Requires-Python: >=3.6
+Dynamic: author
+Dynamic: author-email
+Dynamic: license
+Dynamic: requires-python
+Dynamic: summary

@@ -1,0 +1,5 @@
+[console_scripts]
+xinference = xinference.deploy.cmdline:cli
+xinference-local = xinference.deploy.cmdline:local
+xinference-supervisor = xinference.deploy.cmdline:supervisor
+xinference-worker = xinference.deploy.cmdline:worker

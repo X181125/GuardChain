@@ -1,0 +1,49 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from typing import List, Optional
+from typing_extensions import Literal
+
+from .._models import BaseModel
+from .shared.feature import Feature
+from .shared.cost_information import CostInformation
+from .shared.region_information import RegionInformation
+from .shared.available_phone_numbers_metadata import AvailablePhoneNumbersMetadata
+
+__all__ = ["AvailablePhoneNumberListResponse", "Data"]
+
+
+class Data(BaseModel):
+    best_effort: Optional[bool] = None
+    """
+    Specifies whether the phone number is an exact match based on the search
+    criteria or not.
+    """
+
+    cost_information: Optional[CostInformation] = None
+
+    features: Optional[List[Feature]] = None
+
+    phone_number: Optional[str] = None
+
+    quickship: Optional[bool] = None
+    """
+    Specifies whether the phone number can receive calls immediately after purchase
+    or not.
+    """
+
+    record_type: Optional[Literal["available_phone_number"]] = None
+
+    region_information: Optional[List[RegionInformation]] = None
+
+    reservable: Optional[bool] = None
+    """Specifies whether the phone number can be reserved before purchase or not."""
+
+    vanity_format: Optional[str] = None
+
+
+class AvailablePhoneNumberListResponse(BaseModel):
+    data: Optional[List[Data]] = None
+
+    meta: Optional[AvailablePhoneNumbersMetadata] = None
+
+    metadata: Optional[AvailablePhoneNumbersMetadata] = None

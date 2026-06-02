@@ -6,3 +6,20 @@
   description: Distributed package contains a Python file absent from the source tree.
   tags:
     - integrity
+- id: I002
+  name: Python file differs from source
+  severity: medium
+  confidence: 0.8
+  category: integrity
+  description: Distributed package contains AST-level changes compared with the source tree.
+  tags:
+    - integrity
+- id: I004
+  name: Integrity violation with dangerous behavior
+  severity: high
+  confidence: 0.9
+  category: integrity
+  description: Source-vs-distribution mismatch introduces suspicious behavior.
+  tags:
+    - integrity
+    - behavior

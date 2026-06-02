@@ -7,4 +7,6 @@ METADATA_RULES = {
     "M006": ("Unusual version pattern", "LOW", 5),
     "M007": ("Missing author contact", "LOW", 5),
     "M008": ("Suspicious project URL domain", "MEDIUM", 15),
+    "M009": ("Metadata mismatch across files", "MEDIUM", 15),
+    "M010": ("Custom build backend", "MEDIUM", 15),
 }

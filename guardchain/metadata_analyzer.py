@@ -12,6 +12,12 @@ REPOSITORY_KEYS = {"homepage", "home-page", "home_page", "repository", "source",
 SUSPICIOUS_SETUP_TOKENS = ["os.system", "subprocess", "requests.get", "urllib.request", "exec", "eval", "base64", "socket"]
 SUSPICIOUS_ENTRYPOINT_WORDS = {"install", "update", "payload", "agent", "loader", "postinstall", "bootstrap"}
 SUSPICIOUS_URL_DOMAINS = {"pastebin.com", "raw.githubusercontent.com", "gist.githubusercontent.com", "bit.ly", "tinyurl.com"}
+COMMON_BUILD_BACKENDS = {
+    "setuptools.build_meta",
+    "flit_core.buildapi",
+    "hatchling.build",
+    "poetry.core.masonry.api",
+}
 
 
 def analyze_metadata(context: PackageContext) -> list[Finding]:
@@ -138,6 +144,22 @@ def analyze_metadata(context: PackageContext) -> list[Finding]:
             )
         )
 
+    build_backend = str(metadata.get("build_backend", "")).strip()
+    backend_path = metadata.get("backend_path")
+    if backend_path or (build_backend and build_backend not in COMMON_BUILD_BACKENDS):
+        findings.append(
+            Finding(
+                rule_id="M010",
+                title="Custom build backend",
+                severity="MEDIUM",
+                category="metadata",
+                message="pyproject.toml uses a custom or local build backend",
+                file_path=relative_path(context.pyproject_toml, context.root_path) if context.pyproject_toml else _metadata_location(context),
+                evidence={"build_backend": build_backend or None, "backend_path": backend_path},
+                score=15,
+            )
+        )
+
     if context.setup_py:
         text = safe_read_text(context.setup_py)
         matched = [token for token in SUSPICIOUS_SETUP_TOKENS if token in text]
@@ -198,6 +220,14 @@ def _read_pyproject(path) -> dict[str, str]:
         data["project_urls"] = dict(urls)
         for key, value in urls.items():
             data[f"url:{key.lower()}"] = str(value)
+    build_system = raw.get("build-system", {})
+    if isinstance(build_system, dict):
+        backend = build_system.get("build-backend")
+        if isinstance(backend, str):
+            data["build_backend"] = backend
+        backend_path = build_system.get("backend-path")
+        if isinstance(backend_path, list):
+            data["backend_path"] = [str(item) for item in backend_path]
     return data
 
 

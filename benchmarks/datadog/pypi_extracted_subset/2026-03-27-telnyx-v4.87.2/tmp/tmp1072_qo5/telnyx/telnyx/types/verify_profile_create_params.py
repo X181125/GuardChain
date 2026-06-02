@@ -1,0 +1,147 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing import Optional
+from typing_extensions import Required, TypedDict
+
+from .._types import SequenceNotStr
+
+__all__ = ["VerifyProfileCreateParams", "Call", "Flashcall", "Rcs", "SMS"]
+
+
+class VerifyProfileCreateParams(TypedDict, total=False):
+    name: Required[str]
+
+    call: Call
+
+    flashcall: Flashcall
+
+    language: str
+
+    rcs: Rcs
+
+    sms: SMS
+
+    webhook_failover_url: str
+
+    webhook_url: str
+
+
+class Call(TypedDict, total=False, extra_items=object):  # type: ignore[call-arg]
+    app_name: str
+    """
+    The name that identifies the application requesting 2fa in the verification
+    message.
+    """
+
+    code_length: int
+    """The length of the verify code to generate."""
+
+    default_verification_timeout_secs: int
+    """
+    For every request that is initiated via this Verify profile, this sets the
+    number of seconds before a verification request code expires. Once the
+    verification request expires, the user cannot use the code to verify their
+    identity.
+    """
+
+    messaging_template_id: str
+    """The message template identifier selected from /verify_profiles/templates"""
+
+    whitelisted_destinations: SequenceNotStr[str]
+    """Enabled country destinations to send verification codes.
+
+    The elements in the list must be valid ISO 3166-1 alpha-2 country codes. If set
+    to `["*"]`, all destinations will be allowed.
+    """
+
+
+class Flashcall(TypedDict, total=False, extra_items=object):  # type: ignore[call-arg]
+    app_name: str
+    """
+    The name that identifies the application requesting 2fa in the verification
+    message.
+    """
+
+    default_verification_timeout_secs: int
+    """
+    For every request that is initiated via this Verify profile, this sets the
+    number of seconds before a verification request code expires. Once the
+    verification request expires, the user cannot use the code to verify their
+    identity.
+    """
+
+    whitelisted_destinations: SequenceNotStr[str]
+    """Enabled country destinations to send verification codes.
+
+    The elements in the list must be valid ISO 3166-1 alpha-2 country codes. If set
+    to `["*"]`, all destinations will be allowed.
+    """
+
+
+class Rcs(TypedDict, total=False, extra_items=object):  # type: ignore[call-arg]
+    app_name: str
+    """
+    The name that identifies the application requesting 2fa in the verification
+    message.
+    """
+
+    code_length: int
+    """The length of the verify code to generate."""
+
+    default_verification_timeout_secs: int
+    """
+    For every request that is initiated via this Verify profile, this sets the
+    number of seconds before a verification request code expires. Once the
+    verification request expires, the user cannot use the code to verify their
+    identity.
+    """
+
+    messaging_template_id: str
+    """The message template identifier selected from /verify_profiles/templates"""
+
+    sms_fallback: bool
+    """Enable SMS fallback when RCS delivery fails."""
+
+    whitelisted_destinations: SequenceNotStr[str]
+    """Enabled country destinations to send verification codes.
+
+    The elements in the list must be valid ISO 3166-1 alpha-2 country codes. If set
+    to `["*"]`, all destinations will be allowed.
+    """
+
+
+class SMS(TypedDict, total=False, extra_items=object):  # type: ignore[call-arg]
+    alpha_sender: Optional[str]
+    """
+    The alphanumeric sender ID to use when sending to destinations that require an
+    alphanumeric sender ID.
+    """
+
+    app_name: str
+    """
+    The name that identifies the application requesting 2fa in the verification
+    message.
+    """
+
+    code_length: int
+    """The length of the verify code to generate."""
+
+    default_verification_timeout_secs: int
+    """
+    For every request that is initiated via this Verify profile, this sets the
+    number of seconds before a verification request code expires. Once the
+    verification request expires, the user cannot use the code to verify their
+    identity.
+    """
+
+    messaging_template_id: str
+    """The message template identifier selected from /verify_profiles/templates"""
+
+    whitelisted_destinations: SequenceNotStr[str]
+    """Enabled country destinations to send verification codes.
+
+    The elements in the list must be valid ISO 3166-1 alpha-2 country codes. If set
+    to `["*"]`, all destinations will be allowed.
+    """

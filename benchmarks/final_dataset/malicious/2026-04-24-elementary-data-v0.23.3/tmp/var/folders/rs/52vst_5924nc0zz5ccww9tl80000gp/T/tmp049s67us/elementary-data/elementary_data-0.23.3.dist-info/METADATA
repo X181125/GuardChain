@@ -1,0 +1,284 @@
+Metadata-Version: 2.4
+Name: elementary-data
+Version: 0.23.3
+Summary: Data monitoring and lineage
+License: Apache-2.0
+License-File: LICENSE
+Keywords: data,lineage,data lineage,data warehouse,DWH,observability,data monitoring,data observability,Snowflake,BigQuery,Redshift,data reliability,analytics engineering
+Author: Elementary
+Requires-Python: >=3.10,<3.14
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Software Development :: Libraries
+Provides-Extra: all
+Provides-Extra: athena
+Provides-Extra: bigquery
+Provides-Extra: clickhouse
+Provides-Extra: databricks
+Provides-Extra: dremio
+Provides-Extra: duckdb
+Provides-Extra: fabric
+Provides-Extra: fabricspark
+Provides-Extra: postgres
+Provides-Extra: redshift
+Provides-Extra: snowflake
+Provides-Extra: spark
+Provides-Extra: sqlserver
+Provides-Extra: trino
+Provides-Extra: vertica
+Requires-Dist: alive-progress (<=2.3.1)
+Requires-Dist: azure-storage-blob (>=12.11.0)
+Requires-Dist: beautifulsoup4 (<5.0.0)
+Requires-Dist: boto3 (<2.0.0)
+Requires-Dist: click (>=7.0,<9.0)
+Requires-Dist: dbt-athena-community (>=1.8,<2.0.0) ; extra == "athena" or extra == "all"
+Requires-Dist: dbt-bigquery (>=1.8,<2.0.0) ; extra == "bigquery" or extra == "all"
+Requires-Dist: dbt-clickhouse (>=1.8,<2.0.0) ; extra == "clickhouse" or extra == "all"
+Requires-Dist: dbt-core (>=1.8,<2.0.0)
+Requires-Dist: dbt-databricks (>=1.8,<2.0.0) ; extra == "databricks" or extra == "all"
+Requires-Dist: dbt-dremio (>=1.8,<2.0.0) ; extra == "dremio" or extra == "all"
+Requires-Dist: dbt-duckdb (>=1.8,<2.0.0) ; extra == "duckdb" or extra == "all"
+Requires-Dist: dbt-fabric (>=1.8,<2.0.0) ; extra == "fabric" or extra == "all"
+Requires-Dist: dbt-fabricspark (>=1.8,<2.0.0) ; extra == "fabricspark"
+Requires-Dist: dbt-postgres (>=1.8,<2.0.0) ; extra == "postgres" or extra == "all"
+Requires-Dist: dbt-redshift (>=1.8,<2.0.0) ; extra == "redshift" or extra == "all"
+Requires-Dist: dbt-snowflake (>=1.8,<2.0.0) ; extra == "snowflake" or extra == "all"
+Requires-Dist: dbt-spark (>=1.8,<2.0.0) ; extra == "spark" or extra == "all"
+Requires-Dist: dbt-sqlserver (>=1.8,<2.0.0) ; extra == "sqlserver" or extra == "all"
+Requires-Dist: dbt-trino (>=1.8,<2.0.0) ; extra == "trino" or extra == "all"
+Requires-Dist: dbt-vertica (>=1.8,<2.0.0) ; extra == "vertica"
+Requires-Dist: google-cloud-storage (>=2.4,<3.2)
+Requires-Dist: networkx (>=2.3,<3)
+Requires-Dist: packaging (>=20.9)
+Requires-Dist: posthog (<3.0.0)
+Requires-Dist: pydantic (<3.0)
+Requires-Dist: pymsteams (>=0.2.2,<1.0.0)
+Requires-Dist: pytz (>=2025.1)
+Requires-Dist: ratelimit
+Requires-Dist: requests (>=2.28.1,<3.0.0)
+Requires-Dist: ruamel.yaml (<1.0.0)
+Requires-Dist: slack-sdk (>=3.20.1,<4.0.0)
+Requires-Dist: tabulate (>=0.9.0)
+Requires-Dist: tenacity (>=8.0,<10.0)
+Project-URL: Documentation, https://docs.elementary-data.com
+Project-URL: Homepage, https://www.elementary-data.com
+Project-URL: Repository, https://github.com/elementary-data/elementary
+Description-Content-Type: text/markdown
+
+<p align="center">
+<img alt="Logo" src="https://res.cloudinary.com/do5hrgokq/image/upload/v1764493013/github_banner_zp5l2o.png" width="1000">
+</p>
+<p align="center">
+<a href="https://join.slack.com/t/elementary-community/shared_invite/zt-uehfrq2f-zXeVTtXrjYRbdE_V6xq4Rg"><img src="https://img.shields.io/badge/join-Slack-ff69b4"/></a>
+<a href="https://docs.elementary-data.com/oss/quickstart/quickstart-cli-package"><img src="https://img.shields.io/badge/docs-quickstart-orange"/></a>
+<img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-ff69b4"/>
+<img alt="Downloads" src="https://static.pepy.tech/personalized-badge/elementary-data?period=month&units=international_system&left_color=grey&right_color=orange"&left_text=Downloads/>
+</p>
+
+<h2 align="center">
+Elementary OSS: dbt-native data observability
+</h2>
+
+<div align="center">
+
+[Docs »](https://docs.elementary-data.com/) | [Join the Elementary Community »](https://www.elementary-data.com/community)
+
+</div>
+<div align="center">
+  ⭐️ Star the repo <a href="https://github.com/elementary-data/elementary/stargazers"><img src="static/star_github.png" width="45"/></a> 
+</div>
+</br>
+
+**Built by the [Elementary](https://www.elementary-data.com) team, helping you deliver trusted data in the AI era.**
+
+Elementary OSS is the open-source CLI for dbt-native data observability. It works with the [Elementary dbt package](https://github.com/elementary-data/dbt-data-reliability) to generate the basic Elementary observability report and send alerts to Slack and Microsoft Teams.
+
+For teams that need data reliability at scale, we offer **[Elementary Cloud](https://www.elementary-data.com/)**, a full Data & AI Control Plane with automated ML monitoring, column-level lineage from source to BI, a built-in catalog, and AI agents that scale reliability workflows for both engineers and business users.
+
+![Demo](static/newreadmedemo.gif)
+
+## How It Works
+
+Elementary OSS connects to your warehouse and reads the metadata, artifacts, and test results collected by the Elementary dbt package.  
+With this information, it can:
+
+- Generate a data observability report
+- Surface anomalies and failed tests
+- Send alerts to Slack and Teams
+- Track model and test performance trends
+
+## Quickstart
+
+Follow the quickstart guide to install and configure the Elementary dbt package and CLI:
+
+👉 https://docs.elementary-data.com/oss/quickstart
+
+## Features
+
+- **Anomaly detection tests** - Collect data quality metrics and detect anomalies, as native dbt tests.
+- **Automated monitors** - Out-of-the-box cloud monitors to detect freshness, volume and schema issues.
+- **End-to-End Data Lineage** - Enriched with the latest test results, for impact and root cause analysis of data issues. Elementary Cloud offers **Column-Level-Lineage from ingestion to BI**.
+- **Data quality dashboard** - Single interface for all your data monitoring and test results.
+- **Models performance** - Monitor models and jobs run results and performance over time.
+- **Configuration-as-code** - Elementary configuration is managed in your dbt code.
+- **Alerts** - Actionable alerts including custom channels and tagging of owners.
+- **Data catalog** - Explore your datasets information - descriptions, columns, datasets health, etc.
+- **dbt artifacts uploader** - Save metadata and run results as part of your dbt runs.
+- **AI-Powered Data Tests & Unstructured Data Validations** - Validate and monitor data using AI powered tests to validate both structured and unstructured data
+
+## Support
+
+For additional information and help:
+
+- [Join thousands of users in the Slack community](https://www.elementary-data.com/community) \(Release announcements, community and AI support, discussions, etc.\)
+- [Open a GitHub issue](https://github.com/elementary-data/elementary/issues) \(Bug reports, feature requests)
+- Check out the [contributions guide](./CONTRIBUTING.md) and [open issues](https://github.com/elementary-data/elementary/issues).
+
+##
+
+**Elementary contributors: ✨**
+
+[//]: contributor-faces
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<a href="https://github.com/oravi"><img src="https://avatars.githubusercontent.com/u/4517234?v=4" width="50" height="50" alt=""/></a> 
+<a href="https://github.com/elongl"><img src="https://avatars.githubusercontent.com/u/30181361?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Maayan-s"><img src="https://avatars.githubusercontent.com/u/22072028?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/IDoneShaveIt"><img src="https://avatars.githubusercontent.com/u/48473443?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/haritamar"><img src="https://avatars.githubusercontent.com/u/11314965?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Hadarsagiv"><img src="https://avatars.githubusercontent.com/u/119170841?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/noaKurman"><img src="https://avatars.githubusercontent.com/u/16741969?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/NoyaArie"><img src="https://avatars.githubusercontent.com/u/31591071?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/ellakz"><img src="https://avatars.githubusercontent.com/u/18530437?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/NoyaOffer"><img src="https://avatars.githubusercontent.com/u/192613179?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/elazarlachkar"><img src="https://avatars.githubusercontent.com/u/62235929?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/ofek1weiss"><img src="https://avatars.githubusercontent.com/u/55920061?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/erikzaadi"><img src="https://avatars.githubusercontent.com/u/77775?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/dapollak"><img src="https://avatars.githubusercontent.com/u/13542197?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Adamgo23"><img src="https://avatars.githubusercontent.com/u/125807478?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/MikaKerman"><img src="https://avatars.githubusercontent.com/u/24632225?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/GuyEshdat"><img src="https://avatars.githubusercontent.com/u/81393741?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/michael-myaskovsky"><img src="https://avatars.githubusercontent.com/u/203525071?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/arbiv"><img src="https://avatars.githubusercontent.com/u/12132333?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/RoiTabach"><img src="https://avatars.githubusercontent.com/u/25003091?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/hahnbeelee"><img src="https://avatars.githubusercontent.com/u/55263191?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/seanglynn-thrive"><img src="https://avatars.githubusercontent.com/u/93200565?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/hanywang2"><img src="https://avatars.githubusercontent.com/u/44352119?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Nic3Guy"><img src="https://avatars.githubusercontent.com/u/17640648?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/yu-iskw"><img src="https://avatars.githubusercontent.com/u/1523515?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/nimrodne"><img src="https://avatars.githubusercontent.com/u/12689357?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/hanrok"><img src="https://avatars.githubusercontent.com/u/24649215?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/shahafa"><img src="https://avatars.githubusercontent.com/u/904848?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/aaron-westlake"><img src="https://avatars.githubusercontent.com/u/99689538?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/YashPimple"><img src="https://avatars.githubusercontent.com/u/97302447?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Aylr"><img src="https://avatars.githubusercontent.com/u/928247?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/dorazouri"><img src="https://avatars.githubusercontent.com/u/17954776?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/ronmorgen1"><img src="https://avatars.githubusercontent.com/u/86912787?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Ecalzo"><img src="https://avatars.githubusercontent.com/u/44735669?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/civitaspo"><img src="https://avatars.githubusercontent.com/u/4525500?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/fredmny"><img src="https://avatars.githubusercontent.com/u/27257093?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/GtheSheep"><img src="https://avatars.githubusercontent.com/u/13685708?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/IrinaSel"><img src="https://avatars.githubusercontent.com/u/9607710?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/jtalmi"><img src="https://avatars.githubusercontent.com/u/7266609?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/tobias-mintlify"><img src="https://avatars.githubusercontent.com/u/110702161?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/ValdarT"><img src="https://avatars.githubusercontent.com/u/7242935?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/rloredo"><img src="https://avatars.githubusercontent.com/u/21148554?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/a13xa1v35"><img src="https://avatars.githubusercontent.com/u/25589304?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/kopackiw"><img src="https://avatars.githubusercontent.com/u/26244440?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/eKatia"><img src="https://avatars.githubusercontent.com/u/79864170?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/nzewail"><img src="https://avatars.githubusercontent.com/u/29211170?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/hengpor"><img src="https://avatars.githubusercontent.com/u/4929007?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/smitsrr"><img src="https://avatars.githubusercontent.com/u/8473398?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/SBurwash"><img src="https://avatars.githubusercontent.com/u/35510512?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/kkprab"><img src="https://avatars.githubusercontent.com/u/97446187?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/ivan-toriya"><img src="https://avatars.githubusercontent.com/u/43750521?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/jelstongreen"><img src="https://avatars.githubusercontent.com/u/17743866?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/pei0804"><img src="https://avatars.githubusercontent.com/u/9821370?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/esenilsson"><img src="https://avatars.githubusercontent.com/u/2824187?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/pratik60"><img src="https://avatars.githubusercontent.com/u/2249430?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/benoit-tropos-io"><img src="https://avatars.githubusercontent.com/u/79080900?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/kouridis"><img src="https://avatars.githubusercontent.com/u/11500822?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/clad"><img src="https://avatars.githubusercontent.com/u/41725?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Deathfireofdoom"><img src="https://avatars.githubusercontent.com/u/53213782?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/frannydelaney"><img src="https://avatars.githubusercontent.com/u/77760780?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/edbizarro"><img src="https://avatars.githubusercontent.com/u/84926?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Chintanvpatel"><img src="https://avatars.githubusercontent.com/u/1384301?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/andreqaugusto"><img src="https://avatars.githubusercontent.com/u/68784205?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/tc-chrisbui"><img src="https://avatars.githubusercontent.com/u/115048867?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/vishaalkk"><img src="https://avatars.githubusercontent.com/u/13641827?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/sadahry"><img src="https://avatars.githubusercontent.com/u/28292300?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/will-warner"><img src="https://avatars.githubusercontent.com/u/110092386?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/winzee"><img src="https://avatars.githubusercontent.com/u/1001577?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/vinooganesh"><img src="https://avatars.githubusercontent.com/u/2461070?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/dimoschi"><img src="https://avatars.githubusercontent.com/u/13113025?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/manulpatel"><img src="https://avatars.githubusercontent.com/u/77568048?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/arilmav"><img src="https://avatars.githubusercontent.com/u/60354578?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/kochalex"><img src="https://avatars.githubusercontent.com/u/3217653?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/mossyyy"><img src="https://avatars.githubusercontent.com/u/11269029?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Nanoro-it"><img src="https://avatars.githubusercontent.com/u/140833455?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/chinmayeeudupa"><img src="https://avatars.githubusercontent.com/u/90042185?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/kovaacs"><img src="https://avatars.githubusercontent.com/u/20384210?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Arun-kc"><img src="https://avatars.githubusercontent.com/u/22231409?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/pbadeer"><img src="https://avatars.githubusercontent.com/u/467756?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/JavierLopezT"><img src="https://avatars.githubusercontent.com/u/11339132?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/trevdoz"><img src="https://avatars.githubusercontent.com/u/34779611?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/francoisforster"><img src="https://avatars.githubusercontent.com/u/1295590?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/LePeti"><img src="https://avatars.githubusercontent.com/u/19508797?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/belle-crisp"><img src="https://avatars.githubusercontent.com/u/126576963?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/jonboulle"><img src="https://avatars.githubusercontent.com/u/2601015?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/artem-garmash"><img src="https://avatars.githubusercontent.com/u/5680770?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/nicor88"><img src="https://avatars.githubusercontent.com/u/6278547?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/diegoquintanav"><img src="https://avatars.githubusercontent.com/u/16281387?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/FrankTub"><img src="https://avatars.githubusercontent.com/u/19519819?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/suelai"><img src="https://avatars.githubusercontent.com/u/24508576?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/aibazhang"><img src="https://avatars.githubusercontent.com/u/29817697?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/samirS97"><img src="https://avatars.githubusercontent.com/u/51163297?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/svdimchenko"><img src="https://avatars.githubusercontent.com/u/39801237?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/ronisaban2024"><img src="https://avatars.githubusercontent.com/u/162031979?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/dongchris"><img src="https://avatars.githubusercontent.com/u/86695140?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/sanromeo"><img src="https://avatars.githubusercontent.com/u/44975602?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/AvivZikelDY"><img src="https://avatars.githubusercontent.com/u/111749106?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/hamzamazhar"><img src="https://avatars.githubusercontent.com/u/7986579?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/MiConnell"><img src="https://avatars.githubusercontent.com/u/14168559?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/syou6162"><img src="https://avatars.githubusercontent.com/u/18356?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Tomme"><img src="https://avatars.githubusercontent.com/u/932895?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/bebbo203"><img src="https://avatars.githubusercontent.com/u/5352494?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/geo909"><img src="https://avatars.githubusercontent.com/u/7989227?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/dmitrii-khr"><img src="https://avatars.githubusercontent.com/u/20114683?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/amishas157"><img src="https://avatars.githubusercontent.com/u/4952872?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/3dbrows"><img src="https://avatars.githubusercontent.com/u/5956299?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/AlexBoutou"><img src="https://avatars.githubusercontent.com/u/43123975?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/okabak123"><img src="https://avatars.githubusercontent.com/u/44201872?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/willbowditch"><img src="https://avatars.githubusercontent.com/u/14288042?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/jcarpenter12"><img src="https://avatars.githubusercontent.com/u/22575153?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/JanDintel"><img src="https://avatars.githubusercontent.com/u/3646888?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/kokorin"><img src="https://avatars.githubusercontent.com/u/1089148?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/slaupster"><img src="https://avatars.githubusercontent.com/u/9283885?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/talperetz1"><img src="https://avatars.githubusercontent.com/u/82938736?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/nkmr-jp"><img src="https://avatars.githubusercontent.com/u/8490118?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/dbt-markwan"><img src="https://avatars.githubusercontent.com/u/114556261?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/pedro-klein-ext-bayer"><img src="https://avatars.githubusercontent.com/u/181362556?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/ClementSicard"><img src="https://avatars.githubusercontent.com/u/33360172?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/nickozilla"><img src="https://avatars.githubusercontent.com/u/14976256?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Lawiss"><img src="https://avatars.githubusercontent.com/u/30115537?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/abhipalsingh"><img src="https://avatars.githubusercontent.com/u/57302403?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/pushrbx"><img src="https://avatars.githubusercontent.com/u/6832715?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/Ryosuke839"><img src="https://avatars.githubusercontent.com/u/389513?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/tlangton3"><img src="https://avatars.githubusercontent.com/u/155970791?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/SoloJ"><img src="https://avatars.githubusercontent.com/u/7585392?v=4" width="50" height="50" alt=""/></a>
+<a href="https://github.com/StevenReitsma"><img src="https://avatars.githubusercontent.com/u/4895139?v=4" width="50" height="50" alt=""/></a>
+
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+

@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: aiogram-types-v3
+Version: 3.3.1
+Summary: Async types update patch
+Home-page: https://github.com/aiogram/aiogram
+Author: Telegram Team
+Author-email: security@telegram.org
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: summary

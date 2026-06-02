@@ -16,3 +16,12 @@
   tags:
     - obfuscation
     - dynamic-execution
+- id: T008
+  name: Sensitive source flows into suspicious file write
+  severity: high
+  confidence: 0.85
+  category: taint
+  description: Sensitive local data reaches a persistence-like or executable/script file write.
+  tags:
+    - data-flow
+    - persistence

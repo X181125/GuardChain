@@ -4,19 +4,55 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
+from .call_resolver import CallResolver, get_call_name
 from .models import Finding, PackageContext
 from .utils import preview_node, relative_path, safe_read_text
 
-DYNAMIC_CALLS = {"eval", "exec", "compile", "__import__", "importlib.import_module"}
+DYNAMIC_CALLS = {
+    "eval",
+    "exec",
+    "compile",
+    "execfile",
+    "__import__",
+    "importlib.import_module",
+    "runpy.run_path",
+    "runpy.run_module",
+    "types.FunctionType",
+}
 OS_COMMAND_CALLS = {
     "os.system",
     "os.popen",
+    "os.execl",
+    "os.execle",
+    "os.execlp",
+    "os.execlpe",
+    "os.execv",
+    "os.execve",
+    "os.execvp",
+    "os.execvpe",
+    "os.spawnl",
+    "os.spawnle",
+    "os.spawnlp",
+    "os.spawnlpe",
+    "os.spawnv",
+    "os.spawnve",
+    "os.spawnvp",
+    "os.spawnvpe",
+    "pty.spawn",
     "subprocess.run",
     "subprocess.Popen",
     "subprocess.call",
     "subprocess.check_call",
     "subprocess.check_output",
     "subprocess.getoutput",
+    "commands.getoutput",
+}
+SUBPROCESS_SHELL_CALLS = {
+    "subprocess.run",
+    "subprocess.Popen",
+    "subprocess.call",
+    "subprocess.check_call",
+    "subprocess.check_output",
 }
 NETWORK_CALLS = {
     "requests.get",
@@ -29,12 +65,65 @@ NETWORK_CALLS = {
     "http.client.HTTPSConnection",
     "socket.socket",
     "socket.create_connection",
+    "socket.connect",
+    "socket.send",
+    "socket.sendall",
+    "ftplib.FTP",
+    "smtplib.SMTP",
+    "telnetlib.Telnet",
+    "paramiko.SSHClient",
+    "httpx.get",
+    "httpx.post",
+    "httpx.put",
+    "httpx.request",
+    "aiohttp.ClientSession",
+    "websocket.create_connection",
 }
-NETWORK_POST_CALLS = {"requests.post", "requests.put", "requests.request"}
-SENSITIVE_CALLS = {"os.getenv", "getpass.getuser", "socket.gethostname", "platform.node", "platform.platform", "pathlib.Path.home", "Path.home"}
+NETWORK_POST_CALLS = {
+    "requests.post",
+    "requests.put",
+    "requests.request",
+    "httpx.post",
+    "httpx.put",
+    "httpx.request",
+    "socket.send",
+    "socket.sendall",
+}
+SENSITIVE_CALLS = {
+    "os.getenv",
+    "getpass.getuser",
+    "socket.gethostname",
+    "platform.node",
+    "platform.platform",
+    "uuid.getnode",
+    "pathlib.Path.home",
+    "Path.home",
+}
 SENSITIVE_ATTRIBUTES = {"os.environ"}
-SENSITIVE_STRINGS = {".env", "id_rsa", "id_dsa", ".ssh", ".aws", ".config", "credentials", "token", "secret", "aws", "gcloud", "kube", ".npmrc", ".pypirc"}
-OBFUSCATION_CALLS = {"base64.b64decode", "base64.urlsafe_b64decode", "marshal.loads", "zlib.decompress", "codecs.decode", "binascii.unhexlify"}
+SENSITIVE_STRINGS = {
+    ".env",
+    ".ssh",
+    "id_rsa",
+    "id_dsa",
+    ".aws",
+    "credentials",
+    ".pypirc",
+    ".npmrc",
+    "token",
+    "secret",
+    "gcloud",
+    "kube",
+    "config.json",
+}
+OBFUSCATION_CALLS = {
+    "base64.b64decode",
+    "base64.urlsafe_b64decode",
+    "base64.b64encode",
+    "marshal.loads",
+    "zlib.decompress",
+    "codecs.decode",
+    "binascii.unhexlify",
+}
 SUSPICIOUS_IMPORTS = {
     "ctypes",
     "winreg",
@@ -46,9 +135,16 @@ SUSPICIOUS_IMPORTS = {
     "telnetlib",
     "subprocess",
     "socket",
+    "httpx",
+    "aiohttp",
+    "httpx",
+    "websocket",
+    "smtplib",
     "base64",
     "marshal",
     "zlib",
+    "runpy",
+    "types",
     "requests",
     "urllib",
     "http.client",
@@ -64,16 +160,6 @@ class _Hit:
     value: str
     function: str | None = None
     args_preview: list[str] | None = None
-
-
-def get_call_name(node: ast.AST) -> str | None:
-    """Return a dotted call name such as os.system or urllib.request.urlopen."""
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        parent = get_call_name(node.value)
-        return f"{parent}.{node.attr}" if parent else node.attr
-    return None
 
 
 def analyze_ast(context: PackageContext) -> list[Finding]:
@@ -107,12 +193,14 @@ def analyze_ast(context: PackageContext) -> list[Finding]:
 class _FileAnalyzer(ast.NodeVisitor):
     def __init__(self, rel_path: str) -> None:
         self.rel_path = rel_path
-        self.aliases: dict[str, str] = {}
+        self.resolver = CallResolver()
+        self.write_handles: set[str] = set()
         self.current_function: list[str] = []
         self.current_class: list[str] = []
         self.hits: dict[str, list[_Hit]] = {
             "dynamic": [],
             "os_command": [],
+            "shell_execution": [],
             "network": [],
             "network_post": [],
             "sensitive": [],
@@ -125,21 +213,38 @@ class _FileAnalyzer(ast.NodeVisitor):
         self.function_hits: dict[str, set[str]] = {}
 
     def visit_Import(self, node: ast.Import) -> None:
+        self.resolver.record_import(node)
         for alias in node.names:
-            local = alias.asname or alias.name.split(".")[0]
-            self.aliases[local] = alias.name
             if alias.name in SUSPICIOUS_IMPORTS or alias.name.split(".")[0] in SUSPICIOUS_IMPORTS:
                 self.hits["suspicious_import"].append(self._hit(node, alias.name))
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        self.resolver.record_import_from(node)
         module = node.module or ""
         for alias in node.names:
-            local = alias.asname or alias.name
-            qualified = f"{module}.{alias.name}" if module else alias.name
-            self.aliases[local] = qualified
             if module in SUSPICIOUS_IMPORTS or module.split(".")[0] in SUSPICIOUS_IMPORTS:
                 self.hits["suspicious_import"].append(self._hit(node, module))
+        self.generic_visit(node)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            self.resolver.record_assignment(target, node.value)
+            if self._is_open_write_call(node.value):
+                self.write_handles.update(self._target_names(target))
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value:
+            self.resolver.record_assignment(node.target, node.value)
+            if self._is_open_write_call(node.value):
+                self.write_handles.update(self._target_names(node.target))
+        self.generic_visit(node)
+
+    def visit_With(self, node: ast.With) -> None:
+        for item in node.items:
+            if item.optional_vars and self._is_open_write_call(item.context_expr):
+                self.write_handles.update(self._target_names(item.optional_vars))
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
@@ -161,6 +266,8 @@ class _FileAnalyzer(ast.NodeVisitor):
             self._record("dynamic", node, call_name)
         if call_name in OS_COMMAND_CALLS:
             self._record("os_command", node, call_name)
+        if call_name in SUBPROCESS_SHELL_CALLS and _has_true_keyword(node, "shell"):
+            self._record("shell_execution", node, call_name)
         if call_name in NETWORK_CALLS:
             self._record("network", node, call_name)
             if call_name in NETWORK_POST_CALLS:
@@ -169,7 +276,7 @@ class _FileAnalyzer(ast.NodeVisitor):
             self._record("sensitive", node, call_name)
         if call_name in OBFUSCATION_CALLS:
             self._record("obfuscation", node, call_name)
-        if _is_file_write_call(node, call_name):
+        if self._is_file_write_call(node, call_name):
             self._record("file_write", node, call_name or "open/write")
             self._detect_binary_drop(node)
         self.generic_visit(node)
@@ -193,13 +300,7 @@ class _FileAnalyzer(ast.NodeVisitor):
                 self.hits["binary_drop"].append(self._hit(node, node.value))
 
     def resolve_call_name(self, node: ast.AST) -> str | None:
-        raw = get_call_name(node)
-        if raw is None:
-            return None
-        parts = raw.split(".")
-        if parts[0] in self.aliases:
-            return ".".join([self.aliases[parts[0]], *parts[1:]])
-        return raw
+        return self.resolver.resolve(node)
 
     def findings(self) -> list[Finding]:
         findings: list[Finding] = []
@@ -213,6 +314,17 @@ class _FileAnalyzer(ast.NodeVisitor):
             if is_setup:
                 message += " in setup.py"
             findings.append(self._finding("B002", "System command execution", severity, score, message, self.hits["os_command"]))
+        if self.hits["shell_execution"]:
+            findings.append(
+                self._finding(
+                    "B014",
+                    "Shell-enabled subprocess execution",
+                    "CRITICAL",
+                    45,
+                    "Subprocess command execution uses shell=True",
+                    self.hits["shell_execution"],
+                )
+            )
         if self.hits["network"]:
             findings.append(self._finding("B003", "Network communication", "MEDIUM", 15, "Network operation detected", self.hits["network"]))
         if self.hits["sensitive"]:
@@ -279,6 +391,24 @@ class _FileAnalyzer(ast.NodeVisitor):
             findings.append(self._finding("B010", "Persistence-like behavior", "HIGH", 30, "Persistence-like path or registry marker detected", self.hits["persistence"]))
         if self.hits["binary_drop"]:
             findings.append(self._finding("B011", "Suspicious binary drop", "HIGH", 30, "Suspicious binary or script file write detected", self.hits["binary_drop"]))
+        top_level_hits = [
+            hit
+            for bucket in ("dynamic", "os_command", "network", "file_write")
+            for hit in self.hits[bucket]
+            if hit.function == "<module>"
+        ]
+        if top_level_hits and not is_setup:
+            findings.append(
+                self._finding(
+                    "B013",
+                    "Import-time side effect",
+                    "HIGH",
+                    25,
+                    "Suspicious network, file, command, or dynamic behavior occurs at module import time",
+                    top_level_hits,
+                    evidence_strength="correlated_pattern",
+                )
+            )
         for function, kinds in self.function_hits.items():
             if "network" in kinds and ("os_command" in kinds or "dynamic" in kinds):
                 findings.append(
@@ -356,13 +486,50 @@ class _FileAnalyzer(ast.NodeVisitor):
                 if any(lowered.endswith(ext) for ext in BINARY_DROP_EXTENSIONS):
                     self.hits["binary_drop"].append(self._hit(node, arg.value, [preview_node(arg)]))
 
+    def _is_open_write_call(self, node: ast.AST) -> bool:
+        if not isinstance(node, ast.Call):
+            return False
+        call_name = self.resolve_call_name(node.func)
+        if call_name == "open" and len(node.args) >= 2:
+            mode = node.args[1]
+            return isinstance(mode, ast.Constant) and isinstance(mode.value, str) and any(flag in mode.value for flag in ("w", "a", "+"))
+        if call_name and call_name.endswith(".open") and node.args:
+            mode = node.args[0]
+            return isinstance(mode, ast.Constant) and isinstance(mode.value, str) and any(flag in mode.value for flag in ("w", "a", "+"))
+        return False
 
-def _is_file_write_call(node: ast.Call, call_name: str | None) -> bool:
-    if call_name == "open" and len(node.args) >= 2:
-        mode = node.args[1]
-        return isinstance(mode, ast.Constant) and isinstance(mode.value, str) and any(flag in mode.value for flag in ("w", "a", "+"))
-    if call_name and (call_name.endswith(".write_text") or call_name.endswith(".write_bytes") or call_name in {"Path.write_text", "shutil.copy", "shutil.move"}):
-        return True
-    if call_name and call_name.endswith(".write"):
-        return True
+    def _is_file_write_call(self, node: ast.Call, call_name: str | None) -> bool:
+        if call_name == "open" and self._is_open_write_call(node):
+            return True
+        if call_name and (
+            call_name.endswith(".write_text")
+            or call_name.endswith(".write_bytes")
+            or call_name in {"Path.write_text", "shutil.copy", "shutil.move"}
+        ):
+            return True
+        if call_name and call_name.endswith(".write"):
+            if isinstance(node.func, ast.Attribute):
+                receiver = node.func.value
+                if isinstance(receiver, ast.Name) and receiver.id in self.write_handles:
+                    return True
+                if self._is_open_write_call(receiver):
+                    return True
+            return False
+        return False
+
+    def _target_names(self, node: ast.AST) -> list[str]:
+        if isinstance(node, ast.Name):
+            return [node.id]
+        if isinstance(node, (ast.Tuple, ast.List)):
+            names: list[str] = []
+            for item in node.elts:
+                names.extend(self._target_names(item))
+            return names
+        return []
+
+
+def _has_true_keyword(node: ast.Call, name: str) -> bool:
+    for keyword in node.keywords:
+        if keyword.arg == name and isinstance(keyword.value, ast.Constant) and keyword.value.value is True:
+            return True
     return False

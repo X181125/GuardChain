@@ -1,0 +1,2674 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing_extensions import Literal
+
+import httpx
+
+from ..._types import Body, Omit, Query, Headers, NotGiven, SequenceNotStr, omit, not_given
+from ..._utils import path_template, maybe_transform, async_maybe_transform
+from ..._compat import cached_property
+from ..._resource import SyncAPIResource, AsyncAPIResource
+from ..._response import (
+    to_raw_response_wrapper,
+    to_streamed_response_wrapper,
+    async_to_raw_response_wrapper,
+    async_to_streamed_response_wrapper,
+)
+from ..._base_client import make_request_options
+from ...types.conferences import (
+    action_hold_params,
+    action_join_params,
+    action_mute_params,
+    action_play_params,
+    action_stop_params,
+    action_leave_params,
+    action_speak_params,
+    action_unhold_params,
+    action_unmute_params,
+    action_update_params,
+    action_send_dtmf_params,
+    action_record_stop_params,
+    action_record_pause_params,
+    action_record_start_params,
+    action_record_resume_params,
+    action_end_conference_params,
+    action_gather_dtmf_audio_params,
+)
+from ...types.calls.loopcount_param import LoopcountParam
+from ...types.conferences.action_hold_response import ActionHoldResponse
+from ...types.conferences.action_join_response import ActionJoinResponse
+from ...types.conferences.action_mute_response import ActionMuteResponse
+from ...types.conferences.action_play_response import ActionPlayResponse
+from ...types.conferences.action_stop_response import ActionStopResponse
+from ...types.conferences.action_leave_response import ActionLeaveResponse
+from ...types.conferences.action_speak_response import ActionSpeakResponse
+from ...types.conferences.action_unhold_response import ActionUnholdResponse
+from ...types.conferences.action_unmute_response import ActionUnmuteResponse
+from ...types.conferences.action_update_response import ActionUpdateResponse
+from ...types.conferences.action_send_dtmf_response import ActionSendDtmfResponse
+from ...types.conferences.action_record_stop_response import ActionRecordStopResponse
+from ...types.conferences.action_record_pause_response import ActionRecordPauseResponse
+from ...types.conferences.action_record_start_response import ActionRecordStartResponse
+from ...types.conferences.action_record_resume_response import ActionRecordResumeResponse
+from ...types.conferences.action_end_conference_response import ActionEndConferenceResponse
+from ...types.conferences.action_gather_dtmf_audio_response import ActionGatherDtmfAudioResponse
+
+__all__ = ["ActionsResource", "AsyncActionsResource"]
+
+
+class ActionsResource(SyncAPIResource):
+    """Conference command operations"""
+
+    @cached_property
+    def with_raw_response(self) -> ActionsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return ActionsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> ActionsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return ActionsResourceWithStreamingResponse(self)
+
+    def update(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        supervisor_role: Literal["barge", "monitor", "none", "whisper"],
+        command_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        whisper_call_control_ids: SequenceNotStr[str] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionUpdateResponse:
+        """
+        Update conference participant supervisor_role
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call
+
+          supervisor_role: Sets the participant as a supervisor for the conference. A conference can have
+              multiple supervisors. "barge" means the supervisor enters the conference as a
+              normal participant. This is the same as "none". "monitor" means the supervisor
+              is muted but can hear all participants. "whisper" means that only the specified
+              "whisper_call_control_ids" can hear the supervisor. Defaults to "none".
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          whisper_call_control_ids: Array of unique call_control_ids the supervisor can whisper to. If none
+              provided, the supervisor will join the conference as a monitoring participant
+              only.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/update", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "supervisor_role": supervisor_role,
+                    "command_id": command_id,
+                    "region": region,
+                    "whisper_call_control_ids": whisper_call_control_ids,
+                },
+                action_update_params.ActionUpdateParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionUpdateResponse,
+        )
+
+    def end_conference(
+        self,
+        id: str,
+        *,
+        command_id: str | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionEndConferenceResponse:
+        """
+        End a conference and terminate all active participants.
+
+        Args:
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same conference.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/end", id=id),
+            body=maybe_transform({"command_id": command_id}, action_end_conference_params.ActionEndConferenceParams),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionEndConferenceResponse,
+        )
+
+    def gather_dtmf_audio(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        audio_url: str | Omit = omit,
+        client_state: str | Omit = omit,
+        gather_id: str | Omit = omit,
+        initial_timeout_millis: int | Omit = omit,
+        inter_digit_timeout_millis: int | Omit = omit,
+        invalid_audio_url: str | Omit = omit,
+        invalid_media_name: str | Omit = omit,
+        maximum_digits: int | Omit = omit,
+        maximum_tries: int | Omit = omit,
+        media_name: str | Omit = omit,
+        minimum_digits: int | Omit = omit,
+        stop_playback_on_dtmf: bool | Omit = omit,
+        terminating_digit: str | Omit = omit,
+        timeout_millis: int | Omit = omit,
+        valid_digits: str | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionGatherDtmfAudioResponse:
+        """
+        Play an audio file to a specific conference participant and gather DTMF input.
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call leg that will receive the
+              gather prompt.
+
+          audio_url: The URL of the audio file to play as the gather prompt. Must be WAV or MP3
+              format.
+
+          client_state: Use this field to add state to every subsequent webhook. Must be a valid Base-64
+              encoded string.
+
+          gather_id: Identifier for this gather command. Will be included in the gather ended
+              webhook. Maximum 100 characters.
+
+          initial_timeout_millis: Duration in milliseconds to wait for the first digit before timing out.
+
+          inter_digit_timeout_millis: Duration in milliseconds to wait between digits.
+
+          invalid_audio_url: URL of audio file to play when invalid input is received.
+
+          invalid_media_name: Name of media file to play when invalid input is received.
+
+          maximum_digits: Maximum number of digits to gather.
+
+          maximum_tries: Maximum number of times to play the prompt if no input is received.
+
+          media_name: The name of the media file uploaded to the Media Storage API to play as the
+              gather prompt.
+
+          minimum_digits: Minimum number of digits to gather.
+
+          stop_playback_on_dtmf: Whether to stop the audio playback when a DTMF digit is received.
+
+          terminating_digit: Digit that terminates gathering.
+
+          timeout_millis: Duration in milliseconds to wait for input before timing out.
+
+          valid_digits: Digits that are valid for gathering. All other digits will be ignored.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/gather_using_audio", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "audio_url": audio_url,
+                    "client_state": client_state,
+                    "gather_id": gather_id,
+                    "initial_timeout_millis": initial_timeout_millis,
+                    "inter_digit_timeout_millis": inter_digit_timeout_millis,
+                    "invalid_audio_url": invalid_audio_url,
+                    "invalid_media_name": invalid_media_name,
+                    "maximum_digits": maximum_digits,
+                    "maximum_tries": maximum_tries,
+                    "media_name": media_name,
+                    "minimum_digits": minimum_digits,
+                    "stop_playback_on_dtmf": stop_playback_on_dtmf,
+                    "terminating_digit": terminating_digit,
+                    "timeout_millis": timeout_millis,
+                    "valid_digits": valid_digits,
+                },
+                action_gather_dtmf_audio_params.ActionGatherDtmfAudioParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionGatherDtmfAudioResponse,
+        )
+
+    def hold(
+        self,
+        id: str,
+        *,
+        audio_url: str | Omit = omit,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        media_name: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionHoldResponse:
+        """
+        Hold a list of participants in a conference call
+
+        Args:
+          audio_url: The URL of a file to be played to the participants when they are put on hold.
+              media_name and audio_url cannot be used together in one request.
+
+          call_control_ids: List of unique identifiers and tokens for controlling the call. When empty all
+              participants will be placed on hold.
+
+          media_name: The media_name of a file to be played to the participants when they are put on
+              hold. The media_name must point to a file previously uploaded to
+              api.telnyx.com/v2/media by the same user/organization. The file must either be a
+              WAV or MP3 file.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/hold", id=id),
+            body=maybe_transform(
+                {
+                    "audio_url": audio_url,
+                    "call_control_ids": call_control_ids,
+                    "media_name": media_name,
+                    "region": region,
+                },
+                action_hold_params.ActionHoldParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionHoldResponse,
+        )
+
+    def join(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        beep_enabled: Literal["always", "never", "on_enter", "on_exit"] | Omit = omit,
+        client_state: str | Omit = omit,
+        command_id: str | Omit = omit,
+        end_conference_on_exit: bool | Omit = omit,
+        hold: bool | Omit = omit,
+        hold_audio_url: str | Omit = omit,
+        hold_media_name: str | Omit = omit,
+        mute: bool | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        soft_end_conference_on_exit: bool | Omit = omit,
+        start_conference_on_enter: bool | Omit = omit,
+        supervisor_role: Literal["barge", "monitor", "none", "whisper"] | Omit = omit,
+        whisper_call_control_ids: SequenceNotStr[str] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionJoinResponse:
+        """Join an existing call leg to a conference.
+
+        Issue the Join Conference command
+        with the conference ID in the path and the `call_control_id` of the leg you wish
+        to join to the conference as an attribute. The conference can have up to a
+        certain amount of active participants, as set by the `max_participants`
+        parameter in conference creation request.
+
+        **Expected Webhooks:**
+
+        - `conference.participant.joined`
+        - `conference.participant.left`
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call
+
+          beep_enabled: Whether a beep sound should be played when the participant joins and/or leaves
+              the conference. Can be used to override the conference-level setting.
+
+          client_state: Use this field to add state to every subsequent webhook. It must be a valid
+              Base-64 encoded string. Please note that the client_state will be updated for
+              the participient call leg and the change will not affect conferencing webhooks
+              unless the participient is the owner of the conference.
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          end_conference_on_exit: Whether the conference should end and all remaining participants be hung up
+              after the participant leaves the conference. Defaults to "false".
+
+          hold: Whether the participant should be put on hold immediately after joining the
+              conference. Defaults to "false".
+
+          hold_audio_url: The URL of a file to be played to the participant when they are put on hold
+              after joining the conference. hold_media_name and hold_audio_url cannot be used
+              together in one request. Takes effect only when "start_conference_on_create" is
+              set to "false". This property takes effect only if "hold" is set to "true".
+
+          hold_media_name: The media_name of a file to be played to the participant when they are put on
+              hold after joining the conference. The media_name must point to a file
+              previously uploaded to api.telnyx.com/v2/media by the same user/organization.
+              The file must either be a WAV or MP3 file. Takes effect only when
+              "start_conference_on_create" is set to "false". This property takes effect only
+              if "hold" is set to "true".
+
+          mute: Whether the participant should be muted immediately after joining the
+              conference. Defaults to "false".
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          soft_end_conference_on_exit: Whether the conference should end after the participant leaves the conference.
+              NOTE this doesn't hang up the other participants. Defaults to "false".
+
+          start_conference_on_enter: Whether the conference should be started after the participant joins the
+              conference. Defaults to "false".
+
+          supervisor_role: Sets the joining participant as a supervisor for the conference. A conference
+              can have multiple supervisors. "barge" means the supervisor enters the
+              conference as a normal participant. This is the same as "none". "monitor" means
+              the supervisor is muted but can hear all participants. "whisper" means that only
+              the specified "whisper_call_control_ids" can hear the supervisor. Defaults to
+              "none".
+
+          whisper_call_control_ids: Array of unique call_control_ids the joining supervisor can whisper to. If none
+              provided, the supervisor will join the conference as a monitoring participant
+              only.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/join", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "beep_enabled": beep_enabled,
+                    "client_state": client_state,
+                    "command_id": command_id,
+                    "end_conference_on_exit": end_conference_on_exit,
+                    "hold": hold,
+                    "hold_audio_url": hold_audio_url,
+                    "hold_media_name": hold_media_name,
+                    "mute": mute,
+                    "region": region,
+                    "soft_end_conference_on_exit": soft_end_conference_on_exit,
+                    "start_conference_on_enter": start_conference_on_enter,
+                    "supervisor_role": supervisor_role,
+                    "whisper_call_control_ids": whisper_call_control_ids,
+                },
+                action_join_params.ActionJoinParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionJoinResponse,
+        )
+
+    def leave(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        beep_enabled: Literal["always", "never", "on_enter", "on_exit"] | Omit = omit,
+        command_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionLeaveResponse:
+        """
+        Removes a call leg from a conference and moves it back to parked state.
+
+        **Expected Webhooks:**
+
+        - `conference.participant.left`
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call
+
+          beep_enabled: Whether a beep sound should be played when the participant leaves the
+              conference. Can be used to override the conference-level setting.
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/leave", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "beep_enabled": beep_enabled,
+                    "command_id": command_id,
+                    "region": region,
+                },
+                action_leave_params.ActionLeaveParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionLeaveResponse,
+        )
+
+    def mute(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionMuteResponse:
+        """
+        Mute a list of participants in a conference call
+
+        Args:
+          call_control_ids: Array of unique identifiers and tokens for controlling the call. When empty all
+              participants will be muted.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/mute", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_mute_params.ActionMuteParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionMuteResponse,
+        )
+
+    def play(
+        self,
+        id: str,
+        *,
+        audio_url: str | Omit = omit,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        loop: LoopcountParam | Omit = omit,
+        media_name: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionPlayResponse:
+        """
+        Play audio to all or some participants on a conference call.
+
+        Args:
+          audio_url: The URL of a file to be played back in the conference. media_name and audio_url
+              cannot be used together in one request.
+
+          call_control_ids: List of call control ids identifying participants the audio file should be
+              played to. If not given, the audio file will be played to the entire conference.
+
+          loop: The number of times the audio file should be played. If supplied, the value must
+              be an integer between 1 and 100, or the special string `infinity` for an endless
+              loop.
+
+          media_name: The media_name of a file to be played back in the conference. The media_name
+              must point to a file previously uploaded to api.telnyx.com/v2/media by the same
+              user/organization. The file must either be a WAV or MP3 file.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/play", id=id),
+            body=maybe_transform(
+                {
+                    "audio_url": audio_url,
+                    "call_control_ids": call_control_ids,
+                    "loop": loop,
+                    "media_name": media_name,
+                    "region": region,
+                },
+                action_play_params.ActionPlayParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionPlayResponse,
+        )
+
+    def record_pause(
+        self,
+        id: str,
+        *,
+        command_id: str | Omit = omit,
+        recording_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordPauseResponse:
+        """
+        Pause conference recording.
+
+        Args:
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `call_control_id`.
+
+          recording_id: Use this field to pause specific recording.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/record_pause", id=id),
+            body=maybe_transform(
+                {
+                    "command_id": command_id,
+                    "recording_id": recording_id,
+                    "region": region,
+                },
+                action_record_pause_params.ActionRecordPauseParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordPauseResponse,
+        )
+
+    def record_resume(
+        self,
+        id: str,
+        *,
+        command_id: str | Omit = omit,
+        recording_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordResumeResponse:
+        """
+        Resume conference recording.
+
+        Args:
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `call_control_id`.
+
+          recording_id: Use this field to resume specific recording.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/record_resume", id=id),
+            body=maybe_transform(
+                {
+                    "command_id": command_id,
+                    "recording_id": recording_id,
+                    "region": region,
+                },
+                action_record_resume_params.ActionRecordResumeParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordResumeResponse,
+        )
+
+    def record_start(
+        self,
+        id: str,
+        *,
+        format: Literal["wav", "mp3"],
+        channels: Literal["single", "dual"] | Omit = omit,
+        command_id: str | Omit = omit,
+        custom_file_name: str | Omit = omit,
+        play_beep: bool | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        trim: Literal["trim-silence"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordStartResponse:
+        """Start recording the conference.
+
+        Recording will stop on conference end, or via
+        the Stop Recording command.
+
+        **Expected Webhooks:**
+
+        - `conference.recording.saved`
+
+        Args:
+          format: The audio file format used when storing the conference recording. Can be either
+              `mp3` or `wav`.
+
+          channels: When `dual`, final audio file will be stereo recorded with the conference
+              creator on the first channel, and the rest on the second channel.
+
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `conference_id`.
+
+          custom_file_name: The custom recording file name to be used instead of the default `call_leg_id`.
+              Telnyx will still add a Unix timestamp suffix.
+
+          play_beep: If enabled, a beep sound will be played at the start of a recording.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          trim: When set to `trim-silence`, silence will be removed from the beginning and end
+              of the recording.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/record_start", id=id),
+            body=maybe_transform(
+                {
+                    "format": format,
+                    "channels": channels,
+                    "command_id": command_id,
+                    "custom_file_name": custom_file_name,
+                    "play_beep": play_beep,
+                    "region": region,
+                    "trim": trim,
+                },
+                action_record_start_params.ActionRecordStartParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordStartResponse,
+        )
+
+    def record_stop(
+        self,
+        id: str,
+        *,
+        client_state: str | Omit = omit,
+        command_id: str | Omit = omit,
+        recording_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordStopResponse:
+        """
+        Stop recording the conference.
+
+        **Expected Webhooks:**
+
+        - `conference.recording.saved`
+
+        Args:
+          client_state: Use this field to add state to every subsequent webhook. It must be a valid
+              Base-64 encoded string.
+
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `call_control_id`.
+
+          recording_id: Uniquely identifies the resource.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/record_stop", id=id),
+            body=maybe_transform(
+                {
+                    "client_state": client_state,
+                    "command_id": command_id,
+                    "recording_id": recording_id,
+                    "region": region,
+                },
+                action_record_stop_params.ActionRecordStopParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordStopResponse,
+        )
+
+    def send_dtmf(
+        self,
+        id: str,
+        *,
+        digits: str,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        client_state: str | Omit = omit,
+        duration_millis: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionSendDtmfResponse:
+        """
+        Send DTMF tones to one or more conference participants.
+
+        Args:
+          digits: DTMF digits to send. Valid characters: 0-9, A-D, \\**, #, w (0.5s pause), W (1s
+              pause).
+
+          call_control_ids: Array of participant call control IDs to send DTMF to. When empty, DTMF will be
+              sent to all participants.
+
+          client_state: Use this field to add state to every subsequent webhook. Must be a valid Base-64
+              encoded string.
+
+          duration_millis: Duration of each DTMF digit in milliseconds.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/send_dtmf", id=id),
+            body=maybe_transform(
+                {
+                    "digits": digits,
+                    "call_control_ids": call_control_ids,
+                    "client_state": client_state,
+                    "duration_millis": duration_millis,
+                },
+                action_send_dtmf_params.ActionSendDtmfParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionSendDtmfResponse,
+        )
+
+    def speak(
+        self,
+        id: str,
+        *,
+        payload: str,
+        voice: str,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        command_id: str | Omit = omit,
+        language: Literal[
+            "arb",
+            "cmn-CN",
+            "cy-GB",
+            "da-DK",
+            "de-DE",
+            "en-AU",
+            "en-GB",
+            "en-GB-WLS",
+            "en-IN",
+            "en-US",
+            "es-ES",
+            "es-MX",
+            "es-US",
+            "fr-CA",
+            "fr-FR",
+            "hi-IN",
+            "is-IS",
+            "it-IT",
+            "ja-JP",
+            "ko-KR",
+            "nb-NO",
+            "nl-NL",
+            "pl-PL",
+            "pt-BR",
+            "pt-PT",
+            "ro-RO",
+            "ru-RU",
+            "sv-SE",
+            "tr-TR",
+        ]
+        | Omit = omit,
+        payload_type: Literal["text", "ssml"] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        voice_settings: action_speak_params.VoiceSettings | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionSpeakResponse:
+        """
+        Convert text to speech and play it to all or some participants.
+
+        Args:
+          payload: The text or SSML to be converted into speech. There is a 3,000 character limit.
+
+          voice: Specifies the voice used in speech synthesis.
+
+              - Define voices using the format `<Provider>.<Model>.<VoiceId>`. Specifying only
+                the provider will give default values for voice_id and model_id.
+
+                **Supported Providers:**
+
+              - **AWS:** Use `AWS.Polly.<VoiceId>` (e.g., `AWS.Polly.Joanna`). For neural
+                voices, which provide more realistic, human-like speech, append `-Neural` to
+                the `VoiceId` (e.g., `AWS.Polly.Joanna-Neural`). Check the
+                [available voices](https://docs.aws.amazon.com/polly/latest/dg/available-voices.html)
+                for compatibility.
+              - **Azure:** Use `Azure.<VoiceId>` (e.g., `Azure.en-CA-ClaraNeural`,
+                `Azure.en-US-BrianMultilingualNeural`,
+                `Azure.en-US-Ava:DragonHDLatestNeural`). For a complete list of voices, go to
+                [Azure Voice Gallery](https://speech.microsoft.com/portal/voicegallery). Use
+                `voice_settings` to configure custom deployments, regions, or API keys.
+              - **ElevenLabs:** Use `ElevenLabs.<ModelId>.<VoiceId>` (e.g.,
+                `ElevenLabs.eleven_multilingual_v2.21m00Tcm4TlvDq8ikWAM`). The `ModelId` part
+                is optional. To use ElevenLabs, you must provide your ElevenLabs API key as an
+                integration identifier secret in
+                `"voice_settings": {"api_key_ref": "<secret_identifier>"}`. See
+                [integration secrets documentation](https://developers.telnyx.com/api/secrets-manager/integration-secrets/create-integration-secret)
+                for details. Check
+                [available voices](https://elevenlabs.io/docs/api-reference/get-voices).
+              - **Telnyx:** Use `Telnyx.<model_id>.<voice_id>` (e.g., `Telnyx.KokoroTTS.af`).
+                Use `voice_settings` to configure voice_speed and other synthesis parameters.
+              - **Minimax:** Use `Minimax.<ModelId>.<VoiceId>` (e.g.,
+                `Minimax.speech-02-hd.Wise_Woman`). Supported models: `speech-02-turbo`,
+                `speech-02-hd`, `speech-2.6-turbo`, `speech-2.8-turbo`. Use `voice_settings`
+                to configure speed, volume, pitch, and language_boost.
+              - **Rime:** Use `Rime.<model_id>.<voice_id>` (e.g., `Rime.Arcana.cove`).
+                Supported model_ids: `Arcana`, `Mist`. Use `voice_settings` to configure
+                voice_speed.
+              - **Resemble:** Use `Resemble.Turbo.<voice_id>` (e.g.,
+                `Resemble.Turbo.my_voice`). Only `Turbo` model is supported. Use
+                `voice_settings` to configure precision, sample_rate, and format.
+              - **Inworld:** Use `Inworld.<ModelId>.<VoiceId>` (e.g., `Inworld.Mini.Loretta`,
+                `Inworld.Max.Oliver`). Supported models: `Mini`, `Max`.
+
+              For service_level basic, you may define the gender of the speaker (male or
+              female).
+
+          call_control_ids: Call Control IDs of participants who will hear the spoken text. When empty all
+              participants will hear the spoken text.
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          language: The language you want spoken. This parameter is ignored when a `Polly.*` voice
+              is specified.
+
+          payload_type: The type of the provided payload. The payload can either be plain text, or
+              Speech Synthesis Markup Language (SSML).
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          voice_settings: The settings associated with the voice selected
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/speak", id=id),
+            body=maybe_transform(
+                {
+                    "payload": payload,
+                    "voice": voice,
+                    "call_control_ids": call_control_ids,
+                    "command_id": command_id,
+                    "language": language,
+                    "payload_type": payload_type,
+                    "region": region,
+                    "voice_settings": voice_settings,
+                },
+                action_speak_params.ActionSpeakParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionSpeakResponse,
+        )
+
+    def stop(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionStopResponse:
+        """
+        Stop audio being played to all or some participants on a conference call.
+
+        Args:
+          call_control_ids: List of call control ids identifying participants the audio file should stop be
+              played to. If not given, the audio will be stoped to the entire conference.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/stop", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_stop_params.ActionStopParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionStopResponse,
+        )
+
+    def unhold(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str],
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionUnholdResponse:
+        """
+        Unhold a list of participants in a conference call
+
+        Args:
+          call_control_ids: List of unique identifiers and tokens for controlling the call. Enter each call
+              control ID to be unheld.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/unhold", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_unhold_params.ActionUnholdParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionUnholdResponse,
+        )
+
+    def unmute(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionUnmuteResponse:
+        """
+        Unmute a list of participants in a conference call
+
+        Args:
+          call_control_ids: List of unique identifiers and tokens for controlling the call. Enter each call
+              control ID to be unmuted. When empty all participants will be unmuted.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._post(
+            path_template("/conferences/{id}/actions/unmute", id=id),
+            body=maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_unmute_params.ActionUnmuteParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionUnmuteResponse,
+        )
+
+
+class AsyncActionsResource(AsyncAPIResource):
+    """Conference command operations"""
+
+    @cached_property
+    def with_raw_response(self) -> AsyncActionsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return AsyncActionsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> AsyncActionsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return AsyncActionsResourceWithStreamingResponse(self)
+
+    async def update(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        supervisor_role: Literal["barge", "monitor", "none", "whisper"],
+        command_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        whisper_call_control_ids: SequenceNotStr[str] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionUpdateResponse:
+        """
+        Update conference participant supervisor_role
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call
+
+          supervisor_role: Sets the participant as a supervisor for the conference. A conference can have
+              multiple supervisors. "barge" means the supervisor enters the conference as a
+              normal participant. This is the same as "none". "monitor" means the supervisor
+              is muted but can hear all participants. "whisper" means that only the specified
+              "whisper_call_control_ids" can hear the supervisor. Defaults to "none".
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          whisper_call_control_ids: Array of unique call_control_ids the supervisor can whisper to. If none
+              provided, the supervisor will join the conference as a monitoring participant
+              only.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/update", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "supervisor_role": supervisor_role,
+                    "command_id": command_id,
+                    "region": region,
+                    "whisper_call_control_ids": whisper_call_control_ids,
+                },
+                action_update_params.ActionUpdateParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionUpdateResponse,
+        )
+
+    async def end_conference(
+        self,
+        id: str,
+        *,
+        command_id: str | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionEndConferenceResponse:
+        """
+        End a conference and terminate all active participants.
+
+        Args:
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same conference.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/end", id=id),
+            body=await async_maybe_transform(
+                {"command_id": command_id}, action_end_conference_params.ActionEndConferenceParams
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionEndConferenceResponse,
+        )
+
+    async def gather_dtmf_audio(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        audio_url: str | Omit = omit,
+        client_state: str | Omit = omit,
+        gather_id: str | Omit = omit,
+        initial_timeout_millis: int | Omit = omit,
+        inter_digit_timeout_millis: int | Omit = omit,
+        invalid_audio_url: str | Omit = omit,
+        invalid_media_name: str | Omit = omit,
+        maximum_digits: int | Omit = omit,
+        maximum_tries: int | Omit = omit,
+        media_name: str | Omit = omit,
+        minimum_digits: int | Omit = omit,
+        stop_playback_on_dtmf: bool | Omit = omit,
+        terminating_digit: str | Omit = omit,
+        timeout_millis: int | Omit = omit,
+        valid_digits: str | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionGatherDtmfAudioResponse:
+        """
+        Play an audio file to a specific conference participant and gather DTMF input.
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call leg that will receive the
+              gather prompt.
+
+          audio_url: The URL of the audio file to play as the gather prompt. Must be WAV or MP3
+              format.
+
+          client_state: Use this field to add state to every subsequent webhook. Must be a valid Base-64
+              encoded string.
+
+          gather_id: Identifier for this gather command. Will be included in the gather ended
+              webhook. Maximum 100 characters.
+
+          initial_timeout_millis: Duration in milliseconds to wait for the first digit before timing out.
+
+          inter_digit_timeout_millis: Duration in milliseconds to wait between digits.
+
+          invalid_audio_url: URL of audio file to play when invalid input is received.
+
+          invalid_media_name: Name of media file to play when invalid input is received.
+
+          maximum_digits: Maximum number of digits to gather.
+
+          maximum_tries: Maximum number of times to play the prompt if no input is received.
+
+          media_name: The name of the media file uploaded to the Media Storage API to play as the
+              gather prompt.
+
+          minimum_digits: Minimum number of digits to gather.
+
+          stop_playback_on_dtmf: Whether to stop the audio playback when a DTMF digit is received.
+
+          terminating_digit: Digit that terminates gathering.
+
+          timeout_millis: Duration in milliseconds to wait for input before timing out.
+
+          valid_digits: Digits that are valid for gathering. All other digits will be ignored.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/gather_using_audio", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "audio_url": audio_url,
+                    "client_state": client_state,
+                    "gather_id": gather_id,
+                    "initial_timeout_millis": initial_timeout_millis,
+                    "inter_digit_timeout_millis": inter_digit_timeout_millis,
+                    "invalid_audio_url": invalid_audio_url,
+                    "invalid_media_name": invalid_media_name,
+                    "maximum_digits": maximum_digits,
+                    "maximum_tries": maximum_tries,
+                    "media_name": media_name,
+                    "minimum_digits": minimum_digits,
+                    "stop_playback_on_dtmf": stop_playback_on_dtmf,
+                    "terminating_digit": terminating_digit,
+                    "timeout_millis": timeout_millis,
+                    "valid_digits": valid_digits,
+                },
+                action_gather_dtmf_audio_params.ActionGatherDtmfAudioParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionGatherDtmfAudioResponse,
+        )
+
+    async def hold(
+        self,
+        id: str,
+        *,
+        audio_url: str | Omit = omit,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        media_name: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionHoldResponse:
+        """
+        Hold a list of participants in a conference call
+
+        Args:
+          audio_url: The URL of a file to be played to the participants when they are put on hold.
+              media_name and audio_url cannot be used together in one request.
+
+          call_control_ids: List of unique identifiers and tokens for controlling the call. When empty all
+              participants will be placed on hold.
+
+          media_name: The media_name of a file to be played to the participants when they are put on
+              hold. The media_name must point to a file previously uploaded to
+              api.telnyx.com/v2/media by the same user/organization. The file must either be a
+              WAV or MP3 file.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/hold", id=id),
+            body=await async_maybe_transform(
+                {
+                    "audio_url": audio_url,
+                    "call_control_ids": call_control_ids,
+                    "media_name": media_name,
+                    "region": region,
+                },
+                action_hold_params.ActionHoldParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionHoldResponse,
+        )
+
+    async def join(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        beep_enabled: Literal["always", "never", "on_enter", "on_exit"] | Omit = omit,
+        client_state: str | Omit = omit,
+        command_id: str | Omit = omit,
+        end_conference_on_exit: bool | Omit = omit,
+        hold: bool | Omit = omit,
+        hold_audio_url: str | Omit = omit,
+        hold_media_name: str | Omit = omit,
+        mute: bool | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        soft_end_conference_on_exit: bool | Omit = omit,
+        start_conference_on_enter: bool | Omit = omit,
+        supervisor_role: Literal["barge", "monitor", "none", "whisper"] | Omit = omit,
+        whisper_call_control_ids: SequenceNotStr[str] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionJoinResponse:
+        """Join an existing call leg to a conference.
+
+        Issue the Join Conference command
+        with the conference ID in the path and the `call_control_id` of the leg you wish
+        to join to the conference as an attribute. The conference can have up to a
+        certain amount of active participants, as set by the `max_participants`
+        parameter in conference creation request.
+
+        **Expected Webhooks:**
+
+        - `conference.participant.joined`
+        - `conference.participant.left`
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call
+
+          beep_enabled: Whether a beep sound should be played when the participant joins and/or leaves
+              the conference. Can be used to override the conference-level setting.
+
+          client_state: Use this field to add state to every subsequent webhook. It must be a valid
+              Base-64 encoded string. Please note that the client_state will be updated for
+              the participient call leg and the change will not affect conferencing webhooks
+              unless the participient is the owner of the conference.
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          end_conference_on_exit: Whether the conference should end and all remaining participants be hung up
+              after the participant leaves the conference. Defaults to "false".
+
+          hold: Whether the participant should be put on hold immediately after joining the
+              conference. Defaults to "false".
+
+          hold_audio_url: The URL of a file to be played to the participant when they are put on hold
+              after joining the conference. hold_media_name and hold_audio_url cannot be used
+              together in one request. Takes effect only when "start_conference_on_create" is
+              set to "false". This property takes effect only if "hold" is set to "true".
+
+          hold_media_name: The media_name of a file to be played to the participant when they are put on
+              hold after joining the conference. The media_name must point to a file
+              previously uploaded to api.telnyx.com/v2/media by the same user/organization.
+              The file must either be a WAV or MP3 file. Takes effect only when
+              "start_conference_on_create" is set to "false". This property takes effect only
+              if "hold" is set to "true".
+
+          mute: Whether the participant should be muted immediately after joining the
+              conference. Defaults to "false".
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          soft_end_conference_on_exit: Whether the conference should end after the participant leaves the conference.
+              NOTE this doesn't hang up the other participants. Defaults to "false".
+
+          start_conference_on_enter: Whether the conference should be started after the participant joins the
+              conference. Defaults to "false".
+
+          supervisor_role: Sets the joining participant as a supervisor for the conference. A conference
+              can have multiple supervisors. "barge" means the supervisor enters the
+              conference as a normal participant. This is the same as "none". "monitor" means
+              the supervisor is muted but can hear all participants. "whisper" means that only
+              the specified "whisper_call_control_ids" can hear the supervisor. Defaults to
+              "none".
+
+          whisper_call_control_ids: Array of unique call_control_ids the joining supervisor can whisper to. If none
+              provided, the supervisor will join the conference as a monitoring participant
+              only.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/join", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "beep_enabled": beep_enabled,
+                    "client_state": client_state,
+                    "command_id": command_id,
+                    "end_conference_on_exit": end_conference_on_exit,
+                    "hold": hold,
+                    "hold_audio_url": hold_audio_url,
+                    "hold_media_name": hold_media_name,
+                    "mute": mute,
+                    "region": region,
+                    "soft_end_conference_on_exit": soft_end_conference_on_exit,
+                    "start_conference_on_enter": start_conference_on_enter,
+                    "supervisor_role": supervisor_role,
+                    "whisper_call_control_ids": whisper_call_control_ids,
+                },
+                action_join_params.ActionJoinParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionJoinResponse,
+        )
+
+    async def leave(
+        self,
+        id: str,
+        *,
+        call_control_id: str,
+        beep_enabled: Literal["always", "never", "on_enter", "on_exit"] | Omit = omit,
+        command_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionLeaveResponse:
+        """
+        Removes a call leg from a conference and moves it back to parked state.
+
+        **Expected Webhooks:**
+
+        - `conference.participant.left`
+
+        Args:
+          call_control_id: Unique identifier and token for controlling the call
+
+          beep_enabled: Whether a beep sound should be played when the participant leaves the
+              conference. Can be used to override the conference-level setting.
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/leave", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_id": call_control_id,
+                    "beep_enabled": beep_enabled,
+                    "command_id": command_id,
+                    "region": region,
+                },
+                action_leave_params.ActionLeaveParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionLeaveResponse,
+        )
+
+    async def mute(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionMuteResponse:
+        """
+        Mute a list of participants in a conference call
+
+        Args:
+          call_control_ids: Array of unique identifiers and tokens for controlling the call. When empty all
+              participants will be muted.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/mute", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_mute_params.ActionMuteParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionMuteResponse,
+        )
+
+    async def play(
+        self,
+        id: str,
+        *,
+        audio_url: str | Omit = omit,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        loop: LoopcountParam | Omit = omit,
+        media_name: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionPlayResponse:
+        """
+        Play audio to all or some participants on a conference call.
+
+        Args:
+          audio_url: The URL of a file to be played back in the conference. media_name and audio_url
+              cannot be used together in one request.
+
+          call_control_ids: List of call control ids identifying participants the audio file should be
+              played to. If not given, the audio file will be played to the entire conference.
+
+          loop: The number of times the audio file should be played. If supplied, the value must
+              be an integer between 1 and 100, or the special string `infinity` for an endless
+              loop.
+
+          media_name: The media_name of a file to be played back in the conference. The media_name
+              must point to a file previously uploaded to api.telnyx.com/v2/media by the same
+              user/organization. The file must either be a WAV or MP3 file.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/play", id=id),
+            body=await async_maybe_transform(
+                {
+                    "audio_url": audio_url,
+                    "call_control_ids": call_control_ids,
+                    "loop": loop,
+                    "media_name": media_name,
+                    "region": region,
+                },
+                action_play_params.ActionPlayParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionPlayResponse,
+        )
+
+    async def record_pause(
+        self,
+        id: str,
+        *,
+        command_id: str | Omit = omit,
+        recording_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordPauseResponse:
+        """
+        Pause conference recording.
+
+        Args:
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `call_control_id`.
+
+          recording_id: Use this field to pause specific recording.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/record_pause", id=id),
+            body=await async_maybe_transform(
+                {
+                    "command_id": command_id,
+                    "recording_id": recording_id,
+                    "region": region,
+                },
+                action_record_pause_params.ActionRecordPauseParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordPauseResponse,
+        )
+
+    async def record_resume(
+        self,
+        id: str,
+        *,
+        command_id: str | Omit = omit,
+        recording_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordResumeResponse:
+        """
+        Resume conference recording.
+
+        Args:
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `call_control_id`.
+
+          recording_id: Use this field to resume specific recording.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/record_resume", id=id),
+            body=await async_maybe_transform(
+                {
+                    "command_id": command_id,
+                    "recording_id": recording_id,
+                    "region": region,
+                },
+                action_record_resume_params.ActionRecordResumeParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordResumeResponse,
+        )
+
+    async def record_start(
+        self,
+        id: str,
+        *,
+        format: Literal["wav", "mp3"],
+        channels: Literal["single", "dual"] | Omit = omit,
+        command_id: str | Omit = omit,
+        custom_file_name: str | Omit = omit,
+        play_beep: bool | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        trim: Literal["trim-silence"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordStartResponse:
+        """Start recording the conference.
+
+        Recording will stop on conference end, or via
+        the Stop Recording command.
+
+        **Expected Webhooks:**
+
+        - `conference.recording.saved`
+
+        Args:
+          format: The audio file format used when storing the conference recording. Can be either
+              `mp3` or `wav`.
+
+          channels: When `dual`, final audio file will be stereo recorded with the conference
+              creator on the first channel, and the rest on the second channel.
+
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `conference_id`.
+
+          custom_file_name: The custom recording file name to be used instead of the default `call_leg_id`.
+              Telnyx will still add a Unix timestamp suffix.
+
+          play_beep: If enabled, a beep sound will be played at the start of a recording.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          trim: When set to `trim-silence`, silence will be removed from the beginning and end
+              of the recording.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/record_start", id=id),
+            body=await async_maybe_transform(
+                {
+                    "format": format,
+                    "channels": channels,
+                    "command_id": command_id,
+                    "custom_file_name": custom_file_name,
+                    "play_beep": play_beep,
+                    "region": region,
+                    "trim": trim,
+                },
+                action_record_start_params.ActionRecordStartParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordStartResponse,
+        )
+
+    async def record_stop(
+        self,
+        id: str,
+        *,
+        client_state: str | Omit = omit,
+        command_id: str | Omit = omit,
+        recording_id: str | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionRecordStopResponse:
+        """
+        Stop recording the conference.
+
+        **Expected Webhooks:**
+
+        - `conference.recording.saved`
+
+        Args:
+          client_state: Use this field to add state to every subsequent webhook. It must be a valid
+              Base-64 encoded string.
+
+          command_id: Use this field to avoid duplicate commands. Telnyx will ignore any command with
+              the same `command_id` for the same `call_control_id`.
+
+          recording_id: Uniquely identifies the resource.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/record_stop", id=id),
+            body=await async_maybe_transform(
+                {
+                    "client_state": client_state,
+                    "command_id": command_id,
+                    "recording_id": recording_id,
+                    "region": region,
+                },
+                action_record_stop_params.ActionRecordStopParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionRecordStopResponse,
+        )
+
+    async def send_dtmf(
+        self,
+        id: str,
+        *,
+        digits: str,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        client_state: str | Omit = omit,
+        duration_millis: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionSendDtmfResponse:
+        """
+        Send DTMF tones to one or more conference participants.
+
+        Args:
+          digits: DTMF digits to send. Valid characters: 0-9, A-D, \\**, #, w (0.5s pause), W (1s
+              pause).
+
+          call_control_ids: Array of participant call control IDs to send DTMF to. When empty, DTMF will be
+              sent to all participants.
+
+          client_state: Use this field to add state to every subsequent webhook. Must be a valid Base-64
+              encoded string.
+
+          duration_millis: Duration of each DTMF digit in milliseconds.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/send_dtmf", id=id),
+            body=await async_maybe_transform(
+                {
+                    "digits": digits,
+                    "call_control_ids": call_control_ids,
+                    "client_state": client_state,
+                    "duration_millis": duration_millis,
+                },
+                action_send_dtmf_params.ActionSendDtmfParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionSendDtmfResponse,
+        )
+
+    async def speak(
+        self,
+        id: str,
+        *,
+        payload: str,
+        voice: str,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        command_id: str | Omit = omit,
+        language: Literal[
+            "arb",
+            "cmn-CN",
+            "cy-GB",
+            "da-DK",
+            "de-DE",
+            "en-AU",
+            "en-GB",
+            "en-GB-WLS",
+            "en-IN",
+            "en-US",
+            "es-ES",
+            "es-MX",
+            "es-US",
+            "fr-CA",
+            "fr-FR",
+            "hi-IN",
+            "is-IS",
+            "it-IT",
+            "ja-JP",
+            "ko-KR",
+            "nb-NO",
+            "nl-NL",
+            "pl-PL",
+            "pt-BR",
+            "pt-PT",
+            "ro-RO",
+            "ru-RU",
+            "sv-SE",
+            "tr-TR",
+        ]
+        | Omit = omit,
+        payload_type: Literal["text", "ssml"] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        voice_settings: action_speak_params.VoiceSettings | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionSpeakResponse:
+        """
+        Convert text to speech and play it to all or some participants.
+
+        Args:
+          payload: The text or SSML to be converted into speech. There is a 3,000 character limit.
+
+          voice: Specifies the voice used in speech synthesis.
+
+              - Define voices using the format `<Provider>.<Model>.<VoiceId>`. Specifying only
+                the provider will give default values for voice_id and model_id.
+
+                **Supported Providers:**
+
+              - **AWS:** Use `AWS.Polly.<VoiceId>` (e.g., `AWS.Polly.Joanna`). For neural
+                voices, which provide more realistic, human-like speech, append `-Neural` to
+                the `VoiceId` (e.g., `AWS.Polly.Joanna-Neural`). Check the
+                [available voices](https://docs.aws.amazon.com/polly/latest/dg/available-voices.html)
+                for compatibility.
+              - **Azure:** Use `Azure.<VoiceId>` (e.g., `Azure.en-CA-ClaraNeural`,
+                `Azure.en-US-BrianMultilingualNeural`,
+                `Azure.en-US-Ava:DragonHDLatestNeural`). For a complete list of voices, go to
+                [Azure Voice Gallery](https://speech.microsoft.com/portal/voicegallery). Use
+                `voice_settings` to configure custom deployments, regions, or API keys.
+              - **ElevenLabs:** Use `ElevenLabs.<ModelId>.<VoiceId>` (e.g.,
+                `ElevenLabs.eleven_multilingual_v2.21m00Tcm4TlvDq8ikWAM`). The `ModelId` part
+                is optional. To use ElevenLabs, you must provide your ElevenLabs API key as an
+                integration identifier secret in
+                `"voice_settings": {"api_key_ref": "<secret_identifier>"}`. See
+                [integration secrets documentation](https://developers.telnyx.com/api/secrets-manager/integration-secrets/create-integration-secret)
+                for details. Check
+                [available voices](https://elevenlabs.io/docs/api-reference/get-voices).
+              - **Telnyx:** Use `Telnyx.<model_id>.<voice_id>` (e.g., `Telnyx.KokoroTTS.af`).
+                Use `voice_settings` to configure voice_speed and other synthesis parameters.
+              - **Minimax:** Use `Minimax.<ModelId>.<VoiceId>` (e.g.,
+                `Minimax.speech-02-hd.Wise_Woman`). Supported models: `speech-02-turbo`,
+                `speech-02-hd`, `speech-2.6-turbo`, `speech-2.8-turbo`. Use `voice_settings`
+                to configure speed, volume, pitch, and language_boost.
+              - **Rime:** Use `Rime.<model_id>.<voice_id>` (e.g., `Rime.Arcana.cove`).
+                Supported model_ids: `Arcana`, `Mist`. Use `voice_settings` to configure
+                voice_speed.
+              - **Resemble:** Use `Resemble.Turbo.<voice_id>` (e.g.,
+                `Resemble.Turbo.my_voice`). Only `Turbo` model is supported. Use
+                `voice_settings` to configure precision, sample_rate, and format.
+              - **Inworld:** Use `Inworld.<ModelId>.<VoiceId>` (e.g., `Inworld.Mini.Loretta`,
+                `Inworld.Max.Oliver`). Supported models: `Mini`, `Max`.
+
+              For service_level basic, you may define the gender of the speaker (male or
+              female).
+
+          call_control_ids: Call Control IDs of participants who will hear the spoken text. When empty all
+              participants will hear the spoken text.
+
+          command_id: Use this field to avoid execution of duplicate commands. Telnyx will ignore
+              subsequent commands with the same `command_id` as one that has already been
+              executed.
+
+          language: The language you want spoken. This parameter is ignored when a `Polly.*` voice
+              is specified.
+
+          payload_type: The type of the provided payload. The payload can either be plain text, or
+              Speech Synthesis Markup Language (SSML).
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          voice_settings: The settings associated with the voice selected
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/speak", id=id),
+            body=await async_maybe_transform(
+                {
+                    "payload": payload,
+                    "voice": voice,
+                    "call_control_ids": call_control_ids,
+                    "command_id": command_id,
+                    "language": language,
+                    "payload_type": payload_type,
+                    "region": region,
+                    "voice_settings": voice_settings,
+                },
+                action_speak_params.ActionSpeakParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionSpeakResponse,
+        )
+
+    async def stop(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionStopResponse:
+        """
+        Stop audio being played to all or some participants on a conference call.
+
+        Args:
+          call_control_ids: List of call control ids identifying participants the audio file should stop be
+              played to. If not given, the audio will be stoped to the entire conference.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/stop", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_stop_params.ActionStopParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionStopResponse,
+        )
+
+    async def unhold(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str],
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionUnholdResponse:
+        """
+        Unhold a list of participants in a conference call
+
+        Args:
+          call_control_ids: List of unique identifiers and tokens for controlling the call. Enter each call
+              control ID to be unheld.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/unhold", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_unhold_params.ActionUnholdParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionUnholdResponse,
+        )
+
+    async def unmute(
+        self,
+        id: str,
+        *,
+        call_control_ids: SequenceNotStr[str] | Omit = omit,
+        region: Literal["Australia", "Europe", "Middle East", "US"] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ActionUnmuteResponse:
+        """
+        Unmute a list of participants in a conference call
+
+        Args:
+          call_control_ids: List of unique identifiers and tokens for controlling the call. Enter each call
+              control ID to be unmuted. When empty all participants will be unmuted.
+
+          region: Region where the conference data is located. Defaults to the region defined in
+              user's data locality settings (Europe or US).
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._post(
+            path_template("/conferences/{id}/actions/unmute", id=id),
+            body=await async_maybe_transform(
+                {
+                    "call_control_ids": call_control_ids,
+                    "region": region,
+                },
+                action_unmute_params.ActionUnmuteParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ActionUnmuteResponse,
+        )
+
+
+class ActionsResourceWithRawResponse:
+    def __init__(self, actions: ActionsResource) -> None:
+        self._actions = actions
+
+        self.update = to_raw_response_wrapper(
+            actions.update,
+        )
+        self.end_conference = to_raw_response_wrapper(
+            actions.end_conference,
+        )
+        self.gather_dtmf_audio = to_raw_response_wrapper(
+            actions.gather_dtmf_audio,
+        )
+        self.hold = to_raw_response_wrapper(
+            actions.hold,
+        )
+        self.join = to_raw_response_wrapper(
+            actions.join,
+        )
+        self.leave = to_raw_response_wrapper(
+            actions.leave,
+        )
+        self.mute = to_raw_response_wrapper(
+            actions.mute,
+        )
+        self.play = to_raw_response_wrapper(
+            actions.play,
+        )
+        self.record_pause = to_raw_response_wrapper(
+            actions.record_pause,
+        )
+        self.record_resume = to_raw_response_wrapper(
+            actions.record_resume,
+        )
+        self.record_start = to_raw_response_wrapper(
+            actions.record_start,
+        )
+        self.record_stop = to_raw_response_wrapper(
+            actions.record_stop,
+        )
+        self.send_dtmf = to_raw_response_wrapper(
+            actions.send_dtmf,
+        )
+        self.speak = to_raw_response_wrapper(
+            actions.speak,
+        )
+        self.stop = to_raw_response_wrapper(
+            actions.stop,
+        )
+        self.unhold = to_raw_response_wrapper(
+            actions.unhold,
+        )
+        self.unmute = to_raw_response_wrapper(
+            actions.unmute,
+        )
+
+
+class AsyncActionsResourceWithRawResponse:
+    def __init__(self, actions: AsyncActionsResource) -> None:
+        self._actions = actions
+
+        self.update = async_to_raw_response_wrapper(
+            actions.update,
+        )
+        self.end_conference = async_to_raw_response_wrapper(
+            actions.end_conference,
+        )
+        self.gather_dtmf_audio = async_to_raw_response_wrapper(
+            actions.gather_dtmf_audio,
+        )
+        self.hold = async_to_raw_response_wrapper(
+            actions.hold,
+        )
+        self.join = async_to_raw_response_wrapper(
+            actions.join,
+        )
+        self.leave = async_to_raw_response_wrapper(
+            actions.leave,
+        )
+        self.mute = async_to_raw_response_wrapper(
+            actions.mute,
+        )
+        self.play = async_to_raw_response_wrapper(
+            actions.play,
+        )
+        self.record_pause = async_to_raw_response_wrapper(
+            actions.record_pause,
+        )
+        self.record_resume = async_to_raw_response_wrapper(
+            actions.record_resume,
+        )
+        self.record_start = async_to_raw_response_wrapper(
+            actions.record_start,
+        )
+        self.record_stop = async_to_raw_response_wrapper(
+            actions.record_stop,
+        )
+        self.send_dtmf = async_to_raw_response_wrapper(
+            actions.send_dtmf,
+        )
+        self.speak = async_to_raw_response_wrapper(
+            actions.speak,
+        )
+        self.stop = async_to_raw_response_wrapper(
+            actions.stop,
+        )
+        self.unhold = async_to_raw_response_wrapper(
+            actions.unhold,
+        )
+        self.unmute = async_to_raw_response_wrapper(
+            actions.unmute,
+        )
+
+
+class ActionsResourceWithStreamingResponse:
+    def __init__(self, actions: ActionsResource) -> None:
+        self._actions = actions
+
+        self.update = to_streamed_response_wrapper(
+            actions.update,
+        )
+        self.end_conference = to_streamed_response_wrapper(
+            actions.end_conference,
+        )
+        self.gather_dtmf_audio = to_streamed_response_wrapper(
+            actions.gather_dtmf_audio,
+        )
+        self.hold = to_streamed_response_wrapper(
+            actions.hold,
+        )
+        self.join = to_streamed_response_wrapper(
+            actions.join,
+        )
+        self.leave = to_streamed_response_wrapper(
+            actions.leave,
+        )
+        self.mute = to_streamed_response_wrapper(
+            actions.mute,
+        )
+        self.play = to_streamed_response_wrapper(
+            actions.play,
+        )
+        self.record_pause = to_streamed_response_wrapper(
+            actions.record_pause,
+        )
+        self.record_resume = to_streamed_response_wrapper(
+            actions.record_resume,
+        )
+        self.record_start = to_streamed_response_wrapper(
+            actions.record_start,
+        )
+        self.record_stop = to_streamed_response_wrapper(
+            actions.record_stop,
+        )
+        self.send_dtmf = to_streamed_response_wrapper(
+            actions.send_dtmf,
+        )
+        self.speak = to_streamed_response_wrapper(
+            actions.speak,
+        )
+        self.stop = to_streamed_response_wrapper(
+            actions.stop,
+        )
+        self.unhold = to_streamed_response_wrapper(
+            actions.unhold,
+        )
+        self.unmute = to_streamed_response_wrapper(
+            actions.unmute,
+        )
+
+
+class AsyncActionsResourceWithStreamingResponse:
+    def __init__(self, actions: AsyncActionsResource) -> None:
+        self._actions = actions
+
+        self.update = async_to_streamed_response_wrapper(
+            actions.update,
+        )
+        self.end_conference = async_to_streamed_response_wrapper(
+            actions.end_conference,
+        )
+        self.gather_dtmf_audio = async_to_streamed_response_wrapper(
+            actions.gather_dtmf_audio,
+        )
+        self.hold = async_to_streamed_response_wrapper(
+            actions.hold,
+        )
+        self.join = async_to_streamed_response_wrapper(
+            actions.join,
+        )
+        self.leave = async_to_streamed_response_wrapper(
+            actions.leave,
+        )
+        self.mute = async_to_streamed_response_wrapper(
+            actions.mute,
+        )
+        self.play = async_to_streamed_response_wrapper(
+            actions.play,
+        )
+        self.record_pause = async_to_streamed_response_wrapper(
+            actions.record_pause,
+        )
+        self.record_resume = async_to_streamed_response_wrapper(
+            actions.record_resume,
+        )
+        self.record_start = async_to_streamed_response_wrapper(
+            actions.record_start,
+        )
+        self.record_stop = async_to_streamed_response_wrapper(
+            actions.record_stop,
+        )
+        self.send_dtmf = async_to_streamed_response_wrapper(
+            actions.send_dtmf,
+        )
+        self.speak = async_to_streamed_response_wrapper(
+            actions.speak,
+        )
+        self.stop = async_to_streamed_response_wrapper(
+            actions.stop,
+        )
+        self.unhold = async_to_streamed_response_wrapper(
+            actions.unhold,
+        )
+        self.unmute = async_to_streamed_response_wrapper(
+            actions.unmute,
+        )

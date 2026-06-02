@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: AffineQuant
+Version: 99.6
+Summary: none
+Author: gooder
+Author-email: googerfine@google.com
+Description-Content-Type: text/markdown
+Requires-Dist: requests
+Requires-Dist: psutil
+
+none

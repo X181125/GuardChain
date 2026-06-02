@@ -1,0 +1,9 @@
+[project]
+name = "fixture-declared-not-imported"
+version = "1.0.0"
+description = "Fixture with a dependency that is declared but not imported."
+authors = [{name = "GuardChain"}]
+dependencies = ["requests==2.31.0"]
+
+[project.urls]
+Repository = "https://github.com/example/fixture"

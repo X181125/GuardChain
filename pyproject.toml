@@ -42,3 +42,7 @@ include = ["guardchain*"]
 
 [tool.setuptools.package-data]
 guardchain = ["rules/*.json", "rules/*.yaml", "data/*.txt", "data/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["benchmarks", ".git", ".venv", "venv", "build", "dist"]

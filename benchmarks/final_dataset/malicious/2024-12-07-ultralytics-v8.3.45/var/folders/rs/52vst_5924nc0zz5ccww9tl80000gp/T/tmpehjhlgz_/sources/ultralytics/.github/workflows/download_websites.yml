@@ -1,0 +1,37 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# Action to download Ultralytics website and docs in parallel
+
+name: Download Websites
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *" # runs at 00:00 UTC every day
+  push:
+    branches:
+      - gh-pages
+
+jobs:
+  Download:
+    runs-on: ubuntu-latest
+    # continue-on-error: true
+    strategy:
+      matrix:
+        url:
+          - https://www.ultralytics.com/
+          - https://docs.ultralytics.com/
+          - https://handbook.ultralytics.com/
+      fail-fast: false
+
+    steps:
+      - name: Download ${{ matrix.url }}
+        run: |
+          mkdir website
+          wget -P website \
+            --recursive \
+            --no-parent \
+            --adjust-extension \
+            --reject "*.jpg*,*.jpeg*,*.png*,*.gif*,*.webp*,*.svg*,*.avif*,*.txt,*.ico*,*.bmp*,*.tiff*,*.tif*,*.psd*,*.raw*,*.heic*,*.jfif*,*.webm*,*.mp4*,*.mov*,*.wmv*,*.flv*,*.avi*,*.mkv*" \
+            --wait=0.5 \
+            --random-wait \
+            ${{ matrix.url }}

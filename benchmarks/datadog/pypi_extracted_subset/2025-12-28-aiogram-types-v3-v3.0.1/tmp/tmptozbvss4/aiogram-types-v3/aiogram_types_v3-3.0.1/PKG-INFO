@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: aiogram-types-v3
+Version: 3.0.1
+Summary: Extended types for aiogram v3 framework
+Author: Aiogram Contributors
+Author-email: support@aiogram.dev
+Keywords: telegram bot api async
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: keywords
+Dynamic: requires-python
+Dynamic: summary

@@ -1,0 +1,9 @@
+[project]
+name = "fixture-benign-network"
+version = "1.0.0"
+description = "Fixture with normal network client usage and no sensitive data flow."
+authors = [{name = "GuardChain"}]
+dependencies = ["requests==2.31.0"]
+
+[project.urls]
+Repository = "https://github.com/example/fixture"

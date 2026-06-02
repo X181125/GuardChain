@@ -14,3 +14,27 @@
   description: Dependency is installed from a direct URL.
   tags:
     - supply-chain
+- id: D005
+  name: VCS dependency
+  severity: medium
+  confidence: 0.7
+  category: dependency
+  description: Dependency is installed from a version-control URL.
+  tags:
+    - supply-chain
+- id: D006
+  name: Local path dependency
+  severity: medium
+  confidence: 0.7
+  category: dependency
+  description: Dependency is installed from a local filesystem path.
+  tags:
+    - supply-chain
+- id: D010
+  name: Editable dependency
+  severity: medium
+  confidence: 0.7
+  category: dependency
+  description: Dependency is installed in editable mode.
+  tags:
+    - supply-chain

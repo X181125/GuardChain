@@ -1,0 +1,963 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing import Optional
+from typing_extensions import Literal
+
+import httpx
+
+from ...types import (
+    external_connection_list_params,
+    external_connection_create_params,
+    external_connection_update_params,
+    external_connection_update_location_params,
+)
+from .uploads import (
+    UploadsResource,
+    AsyncUploadsResource,
+    UploadsResourceWithRawResponse,
+    AsyncUploadsResourceWithRawResponse,
+    UploadsResourceWithStreamingResponse,
+    AsyncUploadsResourceWithStreamingResponse,
+)
+from ..._types import Body, Omit, Query, Headers, NotGiven, SequenceNotStr, omit, not_given
+from ..._utils import path_template, maybe_transform, async_maybe_transform
+from .releases import (
+    ReleasesResource,
+    AsyncReleasesResource,
+    ReleasesResourceWithRawResponse,
+    AsyncReleasesResourceWithRawResponse,
+    ReleasesResourceWithStreamingResponse,
+    AsyncReleasesResourceWithStreamingResponse,
+)
+from ..._compat import cached_property
+from ..._resource import SyncAPIResource, AsyncAPIResource
+from ..._response import (
+    to_raw_response_wrapper,
+    to_streamed_response_wrapper,
+    async_to_raw_response_wrapper,
+    async_to_streamed_response_wrapper,
+)
+from ...pagination import SyncDefaultFlatPagination, AsyncDefaultFlatPagination
+from .log_messages import (
+    LogMessagesResource,
+    AsyncLogMessagesResource,
+    LogMessagesResourceWithRawResponse,
+    AsyncLogMessagesResourceWithRawResponse,
+    LogMessagesResourceWithStreamingResponse,
+    AsyncLogMessagesResourceWithStreamingResponse,
+)
+from .phone_numbers import (
+    PhoneNumbersResource,
+    AsyncPhoneNumbersResource,
+    PhoneNumbersResourceWithRawResponse,
+    AsyncPhoneNumbersResourceWithRawResponse,
+    PhoneNumbersResourceWithStreamingResponse,
+    AsyncPhoneNumbersResourceWithStreamingResponse,
+)
+from ..._base_client import AsyncPaginator, make_request_options
+from .civic_addresses import (
+    CivicAddressesResource,
+    AsyncCivicAddressesResource,
+    CivicAddressesResourceWithRawResponse,
+    AsyncCivicAddressesResourceWithRawResponse,
+    CivicAddressesResourceWithStreamingResponse,
+    AsyncCivicAddressesResourceWithStreamingResponse,
+)
+from ...types.external_connection import ExternalConnection
+from ...types.external_connection_create_response import ExternalConnectionCreateResponse
+from ...types.external_connection_delete_response import ExternalConnectionDeleteResponse
+from ...types.external_connection_update_response import ExternalConnectionUpdateResponse
+from ...types.external_connection_retrieve_response import ExternalConnectionRetrieveResponse
+from ...types.external_connection_update_location_response import ExternalConnectionUpdateLocationResponse
+
+__all__ = ["ExternalConnectionsResource", "AsyncExternalConnectionsResource"]
+
+
+class ExternalConnectionsResource(SyncAPIResource):
+    """External Connections operations"""
+
+    @cached_property
+    def log_messages(self) -> LogMessagesResource:
+        """External Connections operations"""
+        return LogMessagesResource(self._client)
+
+    @cached_property
+    def civic_addresses(self) -> CivicAddressesResource:
+        """External Connections operations"""
+        return CivicAddressesResource(self._client)
+
+    @cached_property
+    def phone_numbers(self) -> PhoneNumbersResource:
+        """External Connections operations"""
+        return PhoneNumbersResource(self._client)
+
+    @cached_property
+    def releases(self) -> ReleasesResource:
+        """External Connections operations"""
+        return ReleasesResource(self._client)
+
+    @cached_property
+    def uploads(self) -> UploadsResource:
+        """External Connections operations"""
+        return UploadsResource(self._client)
+
+    @cached_property
+    def with_raw_response(self) -> ExternalConnectionsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return ExternalConnectionsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> ExternalConnectionsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return ExternalConnectionsResourceWithStreamingResponse(self)
+
+    def create(
+        self,
+        *,
+        external_sip_connection: Literal["zoom"],
+        outbound: external_connection_create_params.Outbound,
+        active: bool | Omit = omit,
+        inbound: external_connection_create_params.Inbound | Omit = omit,
+        tags: SequenceNotStr[str] | Omit = omit,
+        webhook_event_failover_url: Optional[str] | Omit = omit,
+        webhook_event_url: str | Omit = omit,
+        webhook_timeout_secs: Optional[int] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionCreateResponse:
+        """
+        Creates a new External Connection based on the parameters sent in the request.
+        The external_sip_connection and outbound voice profile id are required. Once
+        created, you can assign phone numbers to your application using the
+        `/phone_numbers` endpoint.
+
+        Args:
+          external_sip_connection: The service that will be consuming this connection.
+
+          active: Specifies whether the connection can be used.
+
+          tags: Tags associated with the connection.
+
+          webhook_event_failover_url: The failover URL where webhooks related to this connection will be sent if
+              sending to the primary URL fails. Must include a scheme, such as 'https'.
+
+          webhook_event_url: The URL where webhooks related to this connection will be sent. Must include a
+              scheme, such as 'https'.
+
+          webhook_timeout_secs: Specifies how many seconds to wait before timing out a webhook.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        return self._post(
+            "/external_connections",
+            body=maybe_transform(
+                {
+                    "external_sip_connection": external_sip_connection,
+                    "outbound": outbound,
+                    "active": active,
+                    "inbound": inbound,
+                    "tags": tags,
+                    "webhook_event_failover_url": webhook_event_failover_url,
+                    "webhook_event_url": webhook_event_url,
+                    "webhook_timeout_secs": webhook_timeout_secs,
+                },
+                external_connection_create_params.ExternalConnectionCreateParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionCreateResponse,
+        )
+
+    def retrieve(
+        self,
+        id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionRetrieveResponse:
+        """
+        Return the details of an existing External Connection inside the 'data'
+        attribute of the response.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._get(
+            path_template("/external_connections/{id}", id=id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionRetrieveResponse,
+        )
+
+    def update(
+        self,
+        id: str,
+        *,
+        outbound: external_connection_update_params.Outbound,
+        active: bool | Omit = omit,
+        inbound: external_connection_update_params.Inbound | Omit = omit,
+        tags: SequenceNotStr[str] | Omit = omit,
+        webhook_event_failover_url: Optional[str] | Omit = omit,
+        webhook_event_url: str | Omit = omit,
+        webhook_timeout_secs: Optional[int] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionUpdateResponse:
+        """
+        Updates settings of an existing External Connection based on the parameters of
+        the request.
+
+        Args:
+          active: Specifies whether the connection can be used.
+
+          tags: Tags associated with the connection.
+
+          webhook_event_failover_url: The failover URL where webhooks related to this connection will be sent if
+              sending to the primary URL fails. Must include a scheme, such as 'https'.
+
+          webhook_event_url: The URL where webhooks related to this connection will be sent. Must include a
+              scheme, such as 'https'.
+
+          webhook_timeout_secs: Specifies how many seconds to wait before timing out a webhook.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._patch(
+            path_template("/external_connections/{id}", id=id),
+            body=maybe_transform(
+                {
+                    "outbound": outbound,
+                    "active": active,
+                    "inbound": inbound,
+                    "tags": tags,
+                    "webhook_event_failover_url": webhook_event_failover_url,
+                    "webhook_event_url": webhook_event_url,
+                    "webhook_timeout_secs": webhook_timeout_secs,
+                },
+                external_connection_update_params.ExternalConnectionUpdateParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionUpdateResponse,
+        )
+
+    def list(
+        self,
+        *,
+        filter: external_connection_list_params.Filter | Omit = omit,
+        page_number: int | Omit = omit,
+        page_size: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> SyncDefaultFlatPagination[ExternalConnection]:
+        """
+        This endpoint returns a list of your External Connections inside the 'data'
+        attribute of the response. External Connections are used by Telnyx customers to
+        seamless configure SIP trunking integrations with Telnyx Partners, through
+        External Voice Integrations in Mission Control Portal.
+
+        Args:
+          filter: Filter parameter for external connections (deepObject style). Supports filtering
+              by connection_name, external_sip_connection, id, created_at, and phone_number.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        return self._get_api_list(
+            "/external_connections",
+            page=SyncDefaultFlatPagination[ExternalConnection],
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=maybe_transform(
+                    {
+                        "filter": filter,
+                        "page_number": page_number,
+                        "page_size": page_size,
+                    },
+                    external_connection_list_params.ExternalConnectionListParams,
+                ),
+            ),
+            model=ExternalConnection,
+        )
+
+    def delete(
+        self,
+        id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionDeleteResponse:
+        """Permanently deletes an External Connection.
+
+        Deletion may be prevented if the
+        application is in use by phone numbers, is active, or if it is an Operator
+        Connect connection. To remove an Operator Connect integration please contact
+        Telnyx support.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return self._delete(
+            path_template("/external_connections/{id}", id=id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionDeleteResponse,
+        )
+
+    def update_location(
+        self,
+        location_id: str,
+        *,
+        id: str,
+        static_emergency_address_id: str,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionUpdateLocationResponse:
+        """
+        Update a location's static emergency address
+
+        Args:
+          static_emergency_address_id: A new static emergency address ID to update the location with
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        if not location_id:
+            raise ValueError(f"Expected a non-empty value for `location_id` but received {location_id!r}")
+        return self._patch(
+            path_template("/external_connections/{id}/locations/{location_id}", id=id, location_id=location_id),
+            body=maybe_transform(
+                {"static_emergency_address_id": static_emergency_address_id},
+                external_connection_update_location_params.ExternalConnectionUpdateLocationParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionUpdateLocationResponse,
+        )
+
+
+class AsyncExternalConnectionsResource(AsyncAPIResource):
+    """External Connections operations"""
+
+    @cached_property
+    def log_messages(self) -> AsyncLogMessagesResource:
+        """External Connections operations"""
+        return AsyncLogMessagesResource(self._client)
+
+    @cached_property
+    def civic_addresses(self) -> AsyncCivicAddressesResource:
+        """External Connections operations"""
+        return AsyncCivicAddressesResource(self._client)
+
+    @cached_property
+    def phone_numbers(self) -> AsyncPhoneNumbersResource:
+        """External Connections operations"""
+        return AsyncPhoneNumbersResource(self._client)
+
+    @cached_property
+    def releases(self) -> AsyncReleasesResource:
+        """External Connections operations"""
+        return AsyncReleasesResource(self._client)
+
+    @cached_property
+    def uploads(self) -> AsyncUploadsResource:
+        """External Connections operations"""
+        return AsyncUploadsResource(self._client)
+
+    @cached_property
+    def with_raw_response(self) -> AsyncExternalConnectionsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return AsyncExternalConnectionsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> AsyncExternalConnectionsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return AsyncExternalConnectionsResourceWithStreamingResponse(self)
+
+    async def create(
+        self,
+        *,
+        external_sip_connection: Literal["zoom"],
+        outbound: external_connection_create_params.Outbound,
+        active: bool | Omit = omit,
+        inbound: external_connection_create_params.Inbound | Omit = omit,
+        tags: SequenceNotStr[str] | Omit = omit,
+        webhook_event_failover_url: Optional[str] | Omit = omit,
+        webhook_event_url: str | Omit = omit,
+        webhook_timeout_secs: Optional[int] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionCreateResponse:
+        """
+        Creates a new External Connection based on the parameters sent in the request.
+        The external_sip_connection and outbound voice profile id are required. Once
+        created, you can assign phone numbers to your application using the
+        `/phone_numbers` endpoint.
+
+        Args:
+          external_sip_connection: The service that will be consuming this connection.
+
+          active: Specifies whether the connection can be used.
+
+          tags: Tags associated with the connection.
+
+          webhook_event_failover_url: The failover URL where webhooks related to this connection will be sent if
+              sending to the primary URL fails. Must include a scheme, such as 'https'.
+
+          webhook_event_url: The URL where webhooks related to this connection will be sent. Must include a
+              scheme, such as 'https'.
+
+          webhook_timeout_secs: Specifies how many seconds to wait before timing out a webhook.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        return await self._post(
+            "/external_connections",
+            body=await async_maybe_transform(
+                {
+                    "external_sip_connection": external_sip_connection,
+                    "outbound": outbound,
+                    "active": active,
+                    "inbound": inbound,
+                    "tags": tags,
+                    "webhook_event_failover_url": webhook_event_failover_url,
+                    "webhook_event_url": webhook_event_url,
+                    "webhook_timeout_secs": webhook_timeout_secs,
+                },
+                external_connection_create_params.ExternalConnectionCreateParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionCreateResponse,
+        )
+
+    async def retrieve(
+        self,
+        id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionRetrieveResponse:
+        """
+        Return the details of an existing External Connection inside the 'data'
+        attribute of the response.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._get(
+            path_template("/external_connections/{id}", id=id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionRetrieveResponse,
+        )
+
+    async def update(
+        self,
+        id: str,
+        *,
+        outbound: external_connection_update_params.Outbound,
+        active: bool | Omit = omit,
+        inbound: external_connection_update_params.Inbound | Omit = omit,
+        tags: SequenceNotStr[str] | Omit = omit,
+        webhook_event_failover_url: Optional[str] | Omit = omit,
+        webhook_event_url: str | Omit = omit,
+        webhook_timeout_secs: Optional[int] | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionUpdateResponse:
+        """
+        Updates settings of an existing External Connection based on the parameters of
+        the request.
+
+        Args:
+          active: Specifies whether the connection can be used.
+
+          tags: Tags associated with the connection.
+
+          webhook_event_failover_url: The failover URL where webhooks related to this connection will be sent if
+              sending to the primary URL fails. Must include a scheme, such as 'https'.
+
+          webhook_event_url: The URL where webhooks related to this connection will be sent. Must include a
+              scheme, such as 'https'.
+
+          webhook_timeout_secs: Specifies how many seconds to wait before timing out a webhook.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._patch(
+            path_template("/external_connections/{id}", id=id),
+            body=await async_maybe_transform(
+                {
+                    "outbound": outbound,
+                    "active": active,
+                    "inbound": inbound,
+                    "tags": tags,
+                    "webhook_event_failover_url": webhook_event_failover_url,
+                    "webhook_event_url": webhook_event_url,
+                    "webhook_timeout_secs": webhook_timeout_secs,
+                },
+                external_connection_update_params.ExternalConnectionUpdateParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionUpdateResponse,
+        )
+
+    def list(
+        self,
+        *,
+        filter: external_connection_list_params.Filter | Omit = omit,
+        page_number: int | Omit = omit,
+        page_size: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AsyncPaginator[ExternalConnection, AsyncDefaultFlatPagination[ExternalConnection]]:
+        """
+        This endpoint returns a list of your External Connections inside the 'data'
+        attribute of the response. External Connections are used by Telnyx customers to
+        seamless configure SIP trunking integrations with Telnyx Partners, through
+        External Voice Integrations in Mission Control Portal.
+
+        Args:
+          filter: Filter parameter for external connections (deepObject style). Supports filtering
+              by connection_name, external_sip_connection, id, created_at, and phone_number.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        return self._get_api_list(
+            "/external_connections",
+            page=AsyncDefaultFlatPagination[ExternalConnection],
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=maybe_transform(
+                    {
+                        "filter": filter,
+                        "page_number": page_number,
+                        "page_size": page_size,
+                    },
+                    external_connection_list_params.ExternalConnectionListParams,
+                ),
+            ),
+            model=ExternalConnection,
+        )
+
+    async def delete(
+        self,
+        id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionDeleteResponse:
+        """Permanently deletes an External Connection.
+
+        Deletion may be prevented if the
+        application is in use by phone numbers, is active, or if it is an Operator
+        Connect connection. To remove an Operator Connect integration please contact
+        Telnyx support.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        return await self._delete(
+            path_template("/external_connections/{id}", id=id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionDeleteResponse,
+        )
+
+    async def update_location(
+        self,
+        location_id: str,
+        *,
+        id: str,
+        static_emergency_address_id: str,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> ExternalConnectionUpdateLocationResponse:
+        """
+        Update a location's static emergency address
+
+        Args:
+          static_emergency_address_id: A new static emergency address ID to update the location with
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not id:
+            raise ValueError(f"Expected a non-empty value for `id` but received {id!r}")
+        if not location_id:
+            raise ValueError(f"Expected a non-empty value for `location_id` but received {location_id!r}")
+        return await self._patch(
+            path_template("/external_connections/{id}/locations/{location_id}", id=id, location_id=location_id),
+            body=await async_maybe_transform(
+                {"static_emergency_address_id": static_emergency_address_id},
+                external_connection_update_location_params.ExternalConnectionUpdateLocationParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ExternalConnectionUpdateLocationResponse,
+        )
+
+
+class ExternalConnectionsResourceWithRawResponse:
+    def __init__(self, external_connections: ExternalConnectionsResource) -> None:
+        self._external_connections = external_connections
+
+        self.create = to_raw_response_wrapper(
+            external_connections.create,
+        )
+        self.retrieve = to_raw_response_wrapper(
+            external_connections.retrieve,
+        )
+        self.update = to_raw_response_wrapper(
+            external_connections.update,
+        )
+        self.list = to_raw_response_wrapper(
+            external_connections.list,
+        )
+        self.delete = to_raw_response_wrapper(
+            external_connections.delete,
+        )
+        self.update_location = to_raw_response_wrapper(
+            external_connections.update_location,
+        )
+
+    @cached_property
+    def log_messages(self) -> LogMessagesResourceWithRawResponse:
+        """External Connections operations"""
+        return LogMessagesResourceWithRawResponse(self._external_connections.log_messages)
+
+    @cached_property
+    def civic_addresses(self) -> CivicAddressesResourceWithRawResponse:
+        """External Connections operations"""
+        return CivicAddressesResourceWithRawResponse(self._external_connections.civic_addresses)
+
+    @cached_property
+    def phone_numbers(self) -> PhoneNumbersResourceWithRawResponse:
+        """External Connections operations"""
+        return PhoneNumbersResourceWithRawResponse(self._external_connections.phone_numbers)
+
+    @cached_property
+    def releases(self) -> ReleasesResourceWithRawResponse:
+        """External Connections operations"""
+        return ReleasesResourceWithRawResponse(self._external_connections.releases)
+
+    @cached_property
+    def uploads(self) -> UploadsResourceWithRawResponse:
+        """External Connections operations"""
+        return UploadsResourceWithRawResponse(self._external_connections.uploads)
+
+
+class AsyncExternalConnectionsResourceWithRawResponse:
+    def __init__(self, external_connections: AsyncExternalConnectionsResource) -> None:
+        self._external_connections = external_connections
+
+        self.create = async_to_raw_response_wrapper(
+            external_connections.create,
+        )
+        self.retrieve = async_to_raw_response_wrapper(
+            external_connections.retrieve,
+        )
+        self.update = async_to_raw_response_wrapper(
+            external_connections.update,
+        )
+        self.list = async_to_raw_response_wrapper(
+            external_connections.list,
+        )
+        self.delete = async_to_raw_response_wrapper(
+            external_connections.delete,
+        )
+        self.update_location = async_to_raw_response_wrapper(
+            external_connections.update_location,
+        )
+
+    @cached_property
+    def log_messages(self) -> AsyncLogMessagesResourceWithRawResponse:
+        """External Connections operations"""
+        return AsyncLogMessagesResourceWithRawResponse(self._external_connections.log_messages)
+
+    @cached_property
+    def civic_addresses(self) -> AsyncCivicAddressesResourceWithRawResponse:
+        """External Connections operations"""
+        return AsyncCivicAddressesResourceWithRawResponse(self._external_connections.civic_addresses)
+
+    @cached_property
+    def phone_numbers(self) -> AsyncPhoneNumbersResourceWithRawResponse:
+        """External Connections operations"""
+        return AsyncPhoneNumbersResourceWithRawResponse(self._external_connections.phone_numbers)
+
+    @cached_property
+    def releases(self) -> AsyncReleasesResourceWithRawResponse:
+        """External Connections operations"""
+        return AsyncReleasesResourceWithRawResponse(self._external_connections.releases)
+
+    @cached_property
+    def uploads(self) -> AsyncUploadsResourceWithRawResponse:
+        """External Connections operations"""
+        return AsyncUploadsResourceWithRawResponse(self._external_connections.uploads)
+
+
+class ExternalConnectionsResourceWithStreamingResponse:
+    def __init__(self, external_connections: ExternalConnectionsResource) -> None:
+        self._external_connections = external_connections
+
+        self.create = to_streamed_response_wrapper(
+            external_connections.create,
+        )
+        self.retrieve = to_streamed_response_wrapper(
+            external_connections.retrieve,
+        )
+        self.update = to_streamed_response_wrapper(
+            external_connections.update,
+        )
+        self.list = to_streamed_response_wrapper(
+            external_connections.list,
+        )
+        self.delete = to_streamed_response_wrapper(
+            external_connections.delete,
+        )
+        self.update_location = to_streamed_response_wrapper(
+            external_connections.update_location,
+        )
+
+    @cached_property
+    def log_messages(self) -> LogMessagesResourceWithStreamingResponse:
+        """External Connections operations"""
+        return LogMessagesResourceWithStreamingResponse(self._external_connections.log_messages)
+
+    @cached_property
+    def civic_addresses(self) -> CivicAddressesResourceWithStreamingResponse:
+        """External Connections operations"""
+        return CivicAddressesResourceWithStreamingResponse(self._external_connections.civic_addresses)
+
+    @cached_property
+    def phone_numbers(self) -> PhoneNumbersResourceWithStreamingResponse:
+        """External Connections operations"""
+        return PhoneNumbersResourceWithStreamingResponse(self._external_connections.phone_numbers)
+
+    @cached_property
+    def releases(self) -> ReleasesResourceWithStreamingResponse:
+        """External Connections operations"""
+        return ReleasesResourceWithStreamingResponse(self._external_connections.releases)
+
+    @cached_property
+    def uploads(self) -> UploadsResourceWithStreamingResponse:
+        """External Connections operations"""
+        return UploadsResourceWithStreamingResponse(self._external_connections.uploads)
+
+
+class AsyncExternalConnectionsResourceWithStreamingResponse:
+    def __init__(self, external_connections: AsyncExternalConnectionsResource) -> None:
+        self._external_connections = external_connections
+
+        self.create = async_to_streamed_response_wrapper(
+            external_connections.create,
+        )
+        self.retrieve = async_to_streamed_response_wrapper(
+            external_connections.retrieve,
+        )
+        self.update = async_to_streamed_response_wrapper(
+            external_connections.update,
+        )
+        self.list = async_to_streamed_response_wrapper(
+            external_connections.list,
+        )
+        self.delete = async_to_streamed_response_wrapper(
+            external_connections.delete,
+        )
+        self.update_location = async_to_streamed_response_wrapper(
+            external_connections.update_location,
+        )
+
+    @cached_property
+    def log_messages(self) -> AsyncLogMessagesResourceWithStreamingResponse:
+        """External Connections operations"""
+        return AsyncLogMessagesResourceWithStreamingResponse(self._external_connections.log_messages)
+
+    @cached_property
+    def civic_addresses(self) -> AsyncCivicAddressesResourceWithStreamingResponse:
+        """External Connections operations"""
+        return AsyncCivicAddressesResourceWithStreamingResponse(self._external_connections.civic_addresses)
+
+    @cached_property
+    def phone_numbers(self) -> AsyncPhoneNumbersResourceWithStreamingResponse:
+        """External Connections operations"""
+        return AsyncPhoneNumbersResourceWithStreamingResponse(self._external_connections.phone_numbers)
+
+    @cached_property
+    def releases(self) -> AsyncReleasesResourceWithStreamingResponse:
+        """External Connections operations"""
+        return AsyncReleasesResourceWithStreamingResponse(self._external_connections.releases)
+
+    @cached_property
+    def uploads(self) -> AsyncUploadsResourceWithStreamingResponse:
+        """External Connections operations"""
+        return AsyncUploadsResourceWithStreamingResponse(self._external_connections.uploads)

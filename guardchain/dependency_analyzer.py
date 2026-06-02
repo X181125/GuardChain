@@ -83,7 +83,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     evidence_strength="dependency_confirmed",
                 ),
             )
-        if any(marker in entry.raw.lower() for marker in URL_MARKERS):
+        if _is_direct_url(entry.raw):
             _append_once(
                 findings,
                 seen_rules,
@@ -100,7 +100,24 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     evidence_strength="dependency_confirmed",
                 ),
             )
-        if entry.raw.strip().startswith(LOCAL_MARKERS):
+        if _is_editable(entry.raw):
+            _append_once(
+                findings,
+                seen_rules,
+                Finding(
+                    rule_id="D010",
+                    title="Editable dependency",
+                    severity="MEDIUM",
+                    category="dependency",
+                    message="Dependency is installed in editable mode",
+                    file_path=entry.file_path,
+                    line=entry.line,
+                    evidence=entry.raw,
+                    score=15,
+                    evidence_strength="dependency_confirmed",
+                ),
+            )
+        if _is_local_path(entry.raw):
             _append_once(
                 findings,
                 seen_rules,
@@ -117,7 +134,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     evidence_strength="dependency_confirmed",
                 ),
             )
-        if any(marker in entry.raw.lower() for marker in VCS_MARKERS):
+        if _is_vcs(entry.raw):
             _append_once(
                 findings,
                 seen_rules,
@@ -151,7 +168,7 @@ def analyze_dependencies(context: PackageContext) -> tuple[list[Finding], list[s
                     evidence_strength="dependency_confirmed",
                 ),
             )
-        if not is_pinned_requirement(entry.raw) and not any(marker in entry.raw.lower() for marker in URL_MARKERS):
+        if not is_pinned_requirement(entry.raw) and not _is_non_index_dependency(entry.raw):
             _append_once(
                 findings,
                 seen_rules,
@@ -262,9 +279,9 @@ def _entry_to_dependency(entry: _DependencyEntry) -> Dependency:
         raw=raw,
         version_spec=version_spec,
         source=entry.file_path,
-        is_direct_url=direct_url or lowered.startswith(("http://", "https://")),
-        is_vcs=any(marker in lowered for marker in VCS_MARKERS),
-        is_local_path=raw.startswith(LOCAL_MARKERS),
+        is_direct_url=direct_url or _is_direct_url(raw),
+        is_vcs=_is_vcs(raw),
+        is_local_path=_is_local_path(raw),
         is_pinned=is_pinned_requirement(raw),
         extras=extras,
         marker=marker,
@@ -273,8 +290,8 @@ def _entry_to_dependency(entry: _DependencyEntry) -> Dependency:
 
 def _parse_requirement(raw: str) -> Requirement | None:
     line = raw.strip()
-    if line.startswith("-e "):
-        line = line[3:].strip()
+    if _is_editable(line):
+        line = _strip_editable(line)
     if line.startswith(("git+", "http://", "https://")):
         return None
     try:
@@ -319,6 +336,18 @@ def _from_setup_cfg(text: str, rel: str) -> list[_DependencyEntry]:
             name = strip_requirement_name(line)
             if name:
                 entries.append(_DependencyEntry(name, line.strip(), rel))
+    if parser.has_section("options") and parser.has_option("options", "setup_requires"):
+        raw = parser.get("options", "setup_requires")
+        for line in raw.splitlines():
+            name = strip_requirement_name(line)
+            if name:
+                entries.append(_DependencyEntry(name, line.strip(), rel))
+    if parser.has_section("options.extras_require"):
+        for _, raw in parser.items("options.extras_require"):
+            for line in raw.splitlines():
+                name = strip_requirement_name(line)
+                if name:
+                    entries.append(_DependencyEntry(name, line.strip(), rel))
     return entries
 
 
@@ -329,7 +358,9 @@ def _from_setup_py_text(text: str, rel: str) -> list[_DependencyEntry]:
     except SyntaxError:
         return entries
     for node in ast.walk(tree):
-        if isinstance(node, ast.keyword) and node.arg == "install_requires":
+        if isinstance(node, ast.keyword) and node.arg in {"install_requires", "setup_requires", "tests_require"}:
+            entries.extend(_literal_dependency_entries(node.value, rel))
+        if isinstance(node, ast.keyword) and node.arg == "extras_require":
             entries.extend(_literal_dependency_entries(node.value, rel))
     return entries
 
@@ -340,6 +371,9 @@ def _literal_dependency_entries(node: ast.AST, rel: str) -> list[_DependencyEntr
         for item in node.elts:
             if isinstance(item, ast.Constant) and isinstance(item.value, str):
                 entries.append(_DependencyEntry(strip_requirement_name(item.value), item.value, rel, getattr(item, "lineno", None)))
+    if isinstance(node, ast.Dict):
+        for value in node.values:
+            entries.extend(_literal_dependency_entries(value, rel))
     return entries
 
 
@@ -406,6 +440,39 @@ def _allowed_import_names(package: str) -> set[str]:
     normalized = normalize_package_name(package)
     mapping = _import_name_map()
     return {normalized, *mapping.get(normalized, set())}
+
+
+def _is_editable(raw: str) -> bool:
+    return raw.strip().startswith(("-e ", "--editable "))
+
+
+def _strip_editable(raw: str) -> str:
+    stripped = raw.strip()
+    if stripped.startswith("-e "):
+        return stripped[3:].strip()
+    if stripped.startswith("--editable "):
+        return stripped[len("--editable ") :].strip()
+    return stripped
+
+
+def _is_direct_url(raw: str) -> bool:
+    lowered = _strip_editable(raw).lower()
+    return any(marker in lowered for marker in URL_MARKERS) or " @ http://" in lowered or " @ https://" in lowered
+
+
+def _is_vcs(raw: str) -> bool:
+    lowered = _strip_editable(raw).lower()
+    return any(marker in lowered for marker in VCS_MARKERS)
+
+
+def _is_local_path(raw: str) -> bool:
+    stripped = _strip_editable(raw)
+    lowered = stripped.lower()
+    return stripped.startswith(LOCAL_MARKERS) or " @ file:" in lowered
+
+
+def _is_non_index_dependency(raw: str) -> bool:
+    return _is_direct_url(raw) or _is_vcs(raw) or _is_local_path(raw) or _is_editable(raw)
 
 
 def _import_name_map() -> dict[str, set[str]]:

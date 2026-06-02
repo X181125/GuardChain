@@ -1,0 +1,113 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# Ultralics website domain checks
+
+name: Check Domains
+
+on:
+  schedule:
+    # Runs every day at 05:00 UTC
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        domain:
+          [
+            "ultralytics.com",
+            "ultralytics.co",
+            "ultralytics.ai",
+            "ultralytics.app",
+            "ultralytics.eu",
+            "ultralytics.es",
+            "ultralytics.us",
+            "ultralytics.io",
+            "ultralytics.net",
+            "ultralytics.org",
+            "ultralitics.com",
+            "ultralytiks.com",
+            "ultralyitcs.com",
+            "ultralyics.com",
+            "ultralytcs.com",
+            "ultralytics.dev",
+            "ultralytycs.com",
+            "ultraltics.com",
+            "ultralyctics.com",
+            "ultralytix.com",
+            "ultralytic.com",
+            "pjreddie.org",
+            "pjreddie.net",
+            "yolov5.com",
+            "yolo11.com",
+            "yolo11.ai",
+            "yolo11.io",
+            "yolo11.net",
+            "yolo11.org",
+            "yolo14.com",
+            "yolo15.com",
+            "yolo19.com",
+          ]
+        prefix: ["www.", ""]
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+      - name: Check domain redirections
+        shell: python
+        run: |
+          import requests
+          import time
+
+          def check_domain_redirection(domain, prefix, max_attempts=5):
+              """Check if the given domain redirects correctly, with delays between retries."""
+              valid_destinations = ["ultralytics.com", "yolo11.com"]
+              url = f"https://{prefix}{domain}"
+              print(f"\nChecking {url}")
+
+              for attempt in range(max_attempts):
+                  try:
+                      if attempt > 0:
+                          delay = 2 ** attempt  # 2, 4, 8, 16, 32 seconds...
+                          time.sleep(delay)
+
+                      response = requests.get(url, allow_redirects=True, timeout=10)
+                      response.raise_for_status()
+
+                      # Check if the final URL contains any of the valid destinations
+                      if any(dest in response.url for dest in valid_destinations) and response.status_code == 200:
+                          print("Success ✅")
+                          return True
+
+                  except requests.RequestException as e:
+                      print(f"Error: {e}")
+                      if attempt == max_attempts - 1:
+                          print(f"Failed after {max_attempts} attempts ❌")
+                          return False
+
+              return False
+
+          success = check_domain_redirection('${{ matrix.domain }}', '${{ matrix.prefix }}')
+          if not success:
+              raise Exception(f"Domain check failed for ${{ matrix.domain }} with prefix '${{ matrix.prefix }}'")
+
+  Summary:
+    runs-on: ubuntu-latest
+    needs: [Test]
+    if: always()
+    steps:
+      - name: Check for failure and notify
+        if: needs.Test.result == 'failure' && github.repository == 'ultralytics/docs' && (github.event_name == 'schedule' || github.event_name == 'push') && github.run_attempt == '1'
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook-type: incoming-webhook
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL_WEBSITE }}
+          payload: |
+            text: "<!channel> GitHub Actions error for ${{ github.workflow }} ❌\n\n\n*Repository:* https://github.com/${{ github.repository }}\n*Action:* https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n*Author:* ${{ github.actor }}\n*Event:* ${{ github.event_name }}\n"

@@ -85,6 +85,25 @@ class DependencyAnalyzerTests(unittest.TestCase):
             findings, _ = analyze_dependencies(context)
         self.assertNotIn("D007", {finding.rule_id for finding in findings})
 
+    def test_editable_and_setup_requires_dependencies(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "requirements.txt").write_text("-e ../local-package\n", encoding="utf-8")
+            (root / "setup.py").write_text(
+                "from setuptools import setup\n"
+                "setup(name='x', setup_requires=['helper @ https://example.invalid/helper.whl'], extras_require={'dev': ['git+https://example.invalid/repo.git']})\n",
+                encoding="utf-8",
+            )
+            context = load_package(root)
+            findings, dependencies = analyze_dependencies(context)
+        rule_ids = {finding.rule_id for finding in findings}
+        self.assertIn("local-package", dependencies)
+        self.assertIn("helper", dependencies)
+        self.assertIn("D003", rule_ids)
+        self.assertIn("D005", rule_ids)
+        self.assertIn("D006", rule_ids)
+        self.assertIn("D010", rule_ids)
+
 
 if __name__ == "__main__":
     unittest.main()

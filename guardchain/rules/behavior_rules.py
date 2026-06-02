@@ -11,4 +11,6 @@ BEHAVIOR_RULES = {
     "B010": ("Persistence-like behavior", "HIGH", 30),
     "B011": ("Suspicious binary drop", "HIGH", 30),
     "B012": ("Remote command execution pattern", "CRITICAL", 50),
+    "B013": ("Import-time side effect", "HIGH", 25),
+    "B014": ("Shell-enabled subprocess execution", "CRITICAL", 45),
 }

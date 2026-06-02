@@ -1,0 +1,64 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing_extensions import Literal, Required, Annotated, TypedDict
+
+from .._types import SequenceNotStr
+from .._utils import PropertyInfo
+
+__all__ = ["UsageReportListParams"]
+
+
+class UsageReportListParams(TypedDict, total=False):
+    dimensions: Required[SequenceNotStr[str]]
+    """Breakout by specified product dimensions"""
+
+    metrics: Required[SequenceNotStr[str]]
+    """Specified product usage values"""
+
+    product: Required[str]
+    """Telnyx product"""
+
+    date_range: str
+    """A more user-friendly way to specify the timespan you want to filter by.
+
+    More options can be found in the Telnyx API Reference docs.
+    """
+
+    end_date: str
+    """The end date for the time range you are interested in.
+
+    The maximum time range is 31 days. Format: YYYY-MM-DDTHH:mm:ssZ
+    """
+
+    filter: str
+    """Filter records on dimensions"""
+
+    format: Literal["csv", "json"]
+    """Specify the response format (csv or json).
+
+    JSON is returned by default, even if not specified.
+    """
+
+    managed_accounts: bool
+    """
+    Return the aggregations for all Managed Accounts under the user making the
+    request.
+    """
+
+    page_number: Annotated[int, PropertyInfo(alias="page[number]")]
+
+    page_size: Annotated[int, PropertyInfo(alias="page[size]")]
+
+    sort: SequenceNotStr[str]
+    """Specifies the sort order for results"""
+
+    start_date: str
+    """The start date for the time range you are interested in.
+
+    The maximum time range is 31 days. Format: YYYY-MM-DDTHH:mm:ssZ
+    """
+
+    authorization_bearer: str
+    """Authenticates the request with your Telnyx API V2 KEY"""

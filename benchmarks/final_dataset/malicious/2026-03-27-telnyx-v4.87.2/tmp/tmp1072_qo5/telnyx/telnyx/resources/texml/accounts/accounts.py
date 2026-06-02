@@ -1,0 +1,507 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing import Union
+from datetime import datetime
+
+import httpx
+
+from .queues import (
+    QueuesResource,
+    AsyncQueuesResource,
+    QueuesResourceWithRawResponse,
+    AsyncQueuesResourceWithRawResponse,
+    QueuesResourceWithStreamingResponse,
+    AsyncQueuesResourceWithStreamingResponse,
+)
+from ...._types import Body, Omit, Query, Headers, NotGiven, omit, not_given
+from ...._utils import path_template, maybe_transform, async_maybe_transform
+from ...._compat import cached_property
+from .calls.calls import (
+    CallsResource,
+    AsyncCallsResource,
+    CallsResourceWithRawResponse,
+    AsyncCallsResourceWithRawResponse,
+    CallsResourceWithStreamingResponse,
+    AsyncCallsResourceWithStreamingResponse,
+)
+from ...._resource import SyncAPIResource, AsyncAPIResource
+from ...._response import (
+    to_raw_response_wrapper,
+    to_streamed_response_wrapper,
+    async_to_raw_response_wrapper,
+    async_to_streamed_response_wrapper,
+)
+from ....types.texml import account_retrieve_recordings_json_params, account_retrieve_transcriptions_json_params
+from ...._base_client import make_request_options
+from .recordings.recordings import (
+    RecordingsResource,
+    AsyncRecordingsResource,
+    RecordingsResourceWithRawResponse,
+    AsyncRecordingsResourceWithRawResponse,
+    RecordingsResourceWithStreamingResponse,
+    AsyncRecordingsResourceWithStreamingResponse,
+)
+from .conferences.conferences import (
+    ConferencesResource,
+    AsyncConferencesResource,
+    ConferencesResourceWithRawResponse,
+    AsyncConferencesResourceWithRawResponse,
+    ConferencesResourceWithStreamingResponse,
+    AsyncConferencesResourceWithStreamingResponse,
+)
+from .transcriptions.transcriptions import (
+    TranscriptionsResource,
+    AsyncTranscriptionsResource,
+    TranscriptionsResourceWithRawResponse,
+    AsyncTranscriptionsResourceWithRawResponse,
+    TranscriptionsResourceWithStreamingResponse,
+    AsyncTranscriptionsResourceWithStreamingResponse,
+)
+from ....types.texml.account_retrieve_recordings_json_response import AccountRetrieveRecordingsJsonResponse
+from ....types.texml.account_retrieve_transcriptions_json_response import AccountRetrieveTranscriptionsJsonResponse
+
+__all__ = ["AccountsResource", "AsyncAccountsResource"]
+
+
+class AccountsResource(SyncAPIResource):
+    """TeXML REST Commands"""
+
+    @cached_property
+    def calls(self) -> CallsResource:
+        """TeXML REST Commands"""
+        return CallsResource(self._client)
+
+    @cached_property
+    def conferences(self) -> ConferencesResource:
+        """TeXML REST Commands"""
+        return ConferencesResource(self._client)
+
+    @cached_property
+    def recordings(self) -> RecordingsResource:
+        return RecordingsResource(self._client)
+
+    @cached_property
+    def transcriptions(self) -> TranscriptionsResource:
+        return TranscriptionsResource(self._client)
+
+    @cached_property
+    def queues(self) -> QueuesResource:
+        """TeXML REST Commands"""
+        return QueuesResource(self._client)
+
+    @cached_property
+    def with_raw_response(self) -> AccountsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return AccountsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> AccountsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return AccountsResourceWithStreamingResponse(self)
+
+    def retrieve_recordings_json(
+        self,
+        account_sid: str,
+        *,
+        date_created: Union[str, datetime] | Omit = omit,
+        page: int | Omit = omit,
+        page_size: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AccountRetrieveRecordingsJsonResponse:
+        """
+        Returns multiple recording resources for an account.
+
+        Args:
+          date_created: Filters recording by the creation date. Expected format is ISO8601 date or
+              date-time, ie. {YYYY}-{MM}-{DD} or {YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}Z. Also
+              accepts inequality operators, e.g. DateCreated>=2023-05-22.
+
+          page: The number of the page to be displayed, zero-indexed, should be used in
+              conjuction with PageToken.
+
+          page_size: The number of records to be displayed on a page
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not account_sid:
+            raise ValueError(f"Expected a non-empty value for `account_sid` but received {account_sid!r}")
+        return self._get(
+            path_template("/texml/Accounts/{account_sid}/Recordings.json", account_sid=account_sid),
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=maybe_transform(
+                    {
+                        "date_created": date_created,
+                        "page": page,
+                        "page_size": page_size,
+                    },
+                    account_retrieve_recordings_json_params.AccountRetrieveRecordingsJsonParams,
+                ),
+            ),
+            cast_to=AccountRetrieveRecordingsJsonResponse,
+        )
+
+    def retrieve_transcriptions_json(
+        self,
+        account_sid: str,
+        *,
+        page_size: int | Omit = omit,
+        page_token: str | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AccountRetrieveTranscriptionsJsonResponse:
+        """
+        Returns multiple recording transcription resources for an account.
+
+        Args:
+          page_size: The number of records to be displayed on a page
+
+          page_token: Used to request the next page of results.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not account_sid:
+            raise ValueError(f"Expected a non-empty value for `account_sid` but received {account_sid!r}")
+        return self._get(
+            path_template("/texml/Accounts/{account_sid}/Transcriptions.json", account_sid=account_sid),
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=maybe_transform(
+                    {
+                        "page_size": page_size,
+                        "page_token": page_token,
+                    },
+                    account_retrieve_transcriptions_json_params.AccountRetrieveTranscriptionsJsonParams,
+                ),
+            ),
+            cast_to=AccountRetrieveTranscriptionsJsonResponse,
+        )
+
+
+class AsyncAccountsResource(AsyncAPIResource):
+    """TeXML REST Commands"""
+
+    @cached_property
+    def calls(self) -> AsyncCallsResource:
+        """TeXML REST Commands"""
+        return AsyncCallsResource(self._client)
+
+    @cached_property
+    def conferences(self) -> AsyncConferencesResource:
+        """TeXML REST Commands"""
+        return AsyncConferencesResource(self._client)
+
+    @cached_property
+    def recordings(self) -> AsyncRecordingsResource:
+        return AsyncRecordingsResource(self._client)
+
+    @cached_property
+    def transcriptions(self) -> AsyncTranscriptionsResource:
+        return AsyncTranscriptionsResource(self._client)
+
+    @cached_property
+    def queues(self) -> AsyncQueuesResource:
+        """TeXML REST Commands"""
+        return AsyncQueuesResource(self._client)
+
+    @cached_property
+    def with_raw_response(self) -> AsyncAccountsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return AsyncAccountsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> AsyncAccountsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return AsyncAccountsResourceWithStreamingResponse(self)
+
+    async def retrieve_recordings_json(
+        self,
+        account_sid: str,
+        *,
+        date_created: Union[str, datetime] | Omit = omit,
+        page: int | Omit = omit,
+        page_size: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AccountRetrieveRecordingsJsonResponse:
+        """
+        Returns multiple recording resources for an account.
+
+        Args:
+          date_created: Filters recording by the creation date. Expected format is ISO8601 date or
+              date-time, ie. {YYYY}-{MM}-{DD} or {YYYY}-{MM}-{DD}T{hh}:{mm}:{ss}Z. Also
+              accepts inequality operators, e.g. DateCreated>=2023-05-22.
+
+          page: The number of the page to be displayed, zero-indexed, should be used in
+              conjuction with PageToken.
+
+          page_size: The number of records to be displayed on a page
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not account_sid:
+            raise ValueError(f"Expected a non-empty value for `account_sid` but received {account_sid!r}")
+        return await self._get(
+            path_template("/texml/Accounts/{account_sid}/Recordings.json", account_sid=account_sid),
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=await async_maybe_transform(
+                    {
+                        "date_created": date_created,
+                        "page": page,
+                        "page_size": page_size,
+                    },
+                    account_retrieve_recordings_json_params.AccountRetrieveRecordingsJsonParams,
+                ),
+            ),
+            cast_to=AccountRetrieveRecordingsJsonResponse,
+        )
+
+    async def retrieve_transcriptions_json(
+        self,
+        account_sid: str,
+        *,
+        page_size: int | Omit = omit,
+        page_token: str | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AccountRetrieveTranscriptionsJsonResponse:
+        """
+        Returns multiple recording transcription resources for an account.
+
+        Args:
+          page_size: The number of records to be displayed on a page
+
+          page_token: Used to request the next page of results.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not account_sid:
+            raise ValueError(f"Expected a non-empty value for `account_sid` but received {account_sid!r}")
+        return await self._get(
+            path_template("/texml/Accounts/{account_sid}/Transcriptions.json", account_sid=account_sid),
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=await async_maybe_transform(
+                    {
+                        "page_size": page_size,
+                        "page_token": page_token,
+                    },
+                    account_retrieve_transcriptions_json_params.AccountRetrieveTranscriptionsJsonParams,
+                ),
+            ),
+            cast_to=AccountRetrieveTranscriptionsJsonResponse,
+        )
+
+
+class AccountsResourceWithRawResponse:
+    def __init__(self, accounts: AccountsResource) -> None:
+        self._accounts = accounts
+
+        self.retrieve_recordings_json = to_raw_response_wrapper(
+            accounts.retrieve_recordings_json,
+        )
+        self.retrieve_transcriptions_json = to_raw_response_wrapper(
+            accounts.retrieve_transcriptions_json,
+        )
+
+    @cached_property
+    def calls(self) -> CallsResourceWithRawResponse:
+        """TeXML REST Commands"""
+        return CallsResourceWithRawResponse(self._accounts.calls)
+
+    @cached_property
+    def conferences(self) -> ConferencesResourceWithRawResponse:
+        """TeXML REST Commands"""
+        return ConferencesResourceWithRawResponse(self._accounts.conferences)
+
+    @cached_property
+    def recordings(self) -> RecordingsResourceWithRawResponse:
+        return RecordingsResourceWithRawResponse(self._accounts.recordings)
+
+    @cached_property
+    def transcriptions(self) -> TranscriptionsResourceWithRawResponse:
+        return TranscriptionsResourceWithRawResponse(self._accounts.transcriptions)
+
+    @cached_property
+    def queues(self) -> QueuesResourceWithRawResponse:
+        """TeXML REST Commands"""
+        return QueuesResourceWithRawResponse(self._accounts.queues)
+
+
+class AsyncAccountsResourceWithRawResponse:
+    def __init__(self, accounts: AsyncAccountsResource) -> None:
+        self._accounts = accounts
+
+        self.retrieve_recordings_json = async_to_raw_response_wrapper(
+            accounts.retrieve_recordings_json,
+        )
+        self.retrieve_transcriptions_json = async_to_raw_response_wrapper(
+            accounts.retrieve_transcriptions_json,
+        )
+
+    @cached_property
+    def calls(self) -> AsyncCallsResourceWithRawResponse:
+        """TeXML REST Commands"""
+        return AsyncCallsResourceWithRawResponse(self._accounts.calls)
+
+    @cached_property
+    def conferences(self) -> AsyncConferencesResourceWithRawResponse:
+        """TeXML REST Commands"""
+        return AsyncConferencesResourceWithRawResponse(self._accounts.conferences)
+
+    @cached_property
+    def recordings(self) -> AsyncRecordingsResourceWithRawResponse:
+        return AsyncRecordingsResourceWithRawResponse(self._accounts.recordings)
+
+    @cached_property
+    def transcriptions(self) -> AsyncTranscriptionsResourceWithRawResponse:
+        return AsyncTranscriptionsResourceWithRawResponse(self._accounts.transcriptions)
+
+    @cached_property
+    def queues(self) -> AsyncQueuesResourceWithRawResponse:
+        """TeXML REST Commands"""
+        return AsyncQueuesResourceWithRawResponse(self._accounts.queues)
+
+
+class AccountsResourceWithStreamingResponse:
+    def __init__(self, accounts: AccountsResource) -> None:
+        self._accounts = accounts
+
+        self.retrieve_recordings_json = to_streamed_response_wrapper(
+            accounts.retrieve_recordings_json,
+        )
+        self.retrieve_transcriptions_json = to_streamed_response_wrapper(
+            accounts.retrieve_transcriptions_json,
+        )
+
+    @cached_property
+    def calls(self) -> CallsResourceWithStreamingResponse:
+        """TeXML REST Commands"""
+        return CallsResourceWithStreamingResponse(self._accounts.calls)
+
+    @cached_property
+    def conferences(self) -> ConferencesResourceWithStreamingResponse:
+        """TeXML REST Commands"""
+        return ConferencesResourceWithStreamingResponse(self._accounts.conferences)
+
+    @cached_property
+    def recordings(self) -> RecordingsResourceWithStreamingResponse:
+        return RecordingsResourceWithStreamingResponse(self._accounts.recordings)
+
+    @cached_property
+    def transcriptions(self) -> TranscriptionsResourceWithStreamingResponse:
+        return TranscriptionsResourceWithStreamingResponse(self._accounts.transcriptions)
+
+    @cached_property
+    def queues(self) -> QueuesResourceWithStreamingResponse:
+        """TeXML REST Commands"""
+        return QueuesResourceWithStreamingResponse(self._accounts.queues)
+
+
+class AsyncAccountsResourceWithStreamingResponse:
+    def __init__(self, accounts: AsyncAccountsResource) -> None:
+        self._accounts = accounts
+
+        self.retrieve_recordings_json = async_to_streamed_response_wrapper(
+            accounts.retrieve_recordings_json,
+        )
+        self.retrieve_transcriptions_json = async_to_streamed_response_wrapper(
+            accounts.retrieve_transcriptions_json,
+        )
+
+    @cached_property
+    def calls(self) -> AsyncCallsResourceWithStreamingResponse:
+        """TeXML REST Commands"""
+        return AsyncCallsResourceWithStreamingResponse(self._accounts.calls)
+
+    @cached_property
+    def conferences(self) -> AsyncConferencesResourceWithStreamingResponse:
+        """TeXML REST Commands"""
+        return AsyncConferencesResourceWithStreamingResponse(self._accounts.conferences)
+
+    @cached_property
+    def recordings(self) -> AsyncRecordingsResourceWithStreamingResponse:
+        return AsyncRecordingsResourceWithStreamingResponse(self._accounts.recordings)
+
+    @cached_property
+    def transcriptions(self) -> AsyncTranscriptionsResourceWithStreamingResponse:
+        return AsyncTranscriptionsResourceWithStreamingResponse(self._accounts.transcriptions)
+
+    @cached_property
+    def queues(self) -> AsyncQueuesResourceWithStreamingResponse:
+        """TeXML REST Commands"""
+        return AsyncQueuesResourceWithStreamingResponse(self._accounts.queues)

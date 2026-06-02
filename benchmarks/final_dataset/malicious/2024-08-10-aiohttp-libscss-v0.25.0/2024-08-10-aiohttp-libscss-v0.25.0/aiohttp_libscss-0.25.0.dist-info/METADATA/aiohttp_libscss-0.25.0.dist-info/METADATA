@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: aiohttp_libscss
+Version: 0.25.0
+Summary: Scss for Python: A straightforward binding of libscss for Python.
+Requires-Python: >=3.8,<4.0
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Dist: aiohttp (>=3.10.2,<4.0.0)
+Project-URL: documentation, https://sass.github.io/libsass-python
+Project-URL: homepage, https://pypi.org/project/libsass
+Project-URL: repository, https://github.com/sass/libsass-python

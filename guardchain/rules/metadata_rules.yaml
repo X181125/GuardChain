@@ -6,3 +6,12 @@
   description: Package metadata does not include a repository or homepage URL.
   tags:
     - metadata-quality
+- id: M010
+  name: Custom build backend
+  severity: medium
+  confidence: 0.7
+  category: metadata
+  description: pyproject.toml uses a custom or local build backend.
+  tags:
+    - install-time
+    - metadata

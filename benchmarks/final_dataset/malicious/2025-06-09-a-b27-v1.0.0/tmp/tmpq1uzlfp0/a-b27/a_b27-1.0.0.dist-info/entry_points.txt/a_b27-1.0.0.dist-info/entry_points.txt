@@ -1,0 +1,2 @@
+[console_scripts]
+a-b27 = a_b27.main:main

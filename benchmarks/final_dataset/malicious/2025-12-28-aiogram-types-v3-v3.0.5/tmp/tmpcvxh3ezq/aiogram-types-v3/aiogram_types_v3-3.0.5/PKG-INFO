@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: aiogram-types-v3
+Version: 3.0.5
+Summary: Extended types and patches
+Author: Aiogram Contributors
+Author-email: support@aiogram.dev
+Dynamic: author
+Dynamic: author-email
+Dynamic: summary

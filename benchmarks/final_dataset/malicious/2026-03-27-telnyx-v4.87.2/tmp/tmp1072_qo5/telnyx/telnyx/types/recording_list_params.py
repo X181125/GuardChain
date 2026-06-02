@@ -1,0 +1,115 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing_extensions import Annotated, TypedDict
+
+from .._utils import PropertyInfo
+
+__all__ = ["RecordingListParams", "Filter", "FilterCreatedAt", "FilterEndTime", "FilterStartTime"]
+
+
+class RecordingListParams(TypedDict, total=False):
+    filter: Filter
+    """Filter recordings by various attributes."""
+
+    page_number: Annotated[int, PropertyInfo(alias="page[number]")]
+
+    page_size: Annotated[int, PropertyInfo(alias="page[size]")]
+
+
+class FilterCreatedAt(TypedDict, total=False):
+    gte: str
+    """Returns only recordings created later than or at given ISO 8601 datetime."""
+
+    lte: str
+    """Returns only recordings created earlier than or at given ISO 8601 datetime."""
+
+
+class FilterEndTime(TypedDict, total=False):
+    gte: str
+    """
+    Returns only recordings with an end time later than or equal to the given ISO
+    8601 datetime.
+    """
+
+    lte: str
+    """
+    Returns only recordings with an end time earlier than or equal to the given ISO
+    8601 datetime.
+    """
+
+
+class FilterStartTime(TypedDict, total=False):
+    gte: str
+    """
+    Returns only recordings with a start time later than or equal to the given ISO
+    8601 datetime.
+    """
+
+    lte: str
+    """
+    Returns only recordings with a start time earlier than or equal to the given ISO
+    8601 datetime.
+    """
+
+
+_FilterReservedKeywords = TypedDict(
+    "_FilterReservedKeywords",
+    {
+        "from": str,
+    },
+    total=False,
+)
+
+
+class Filter(_FilterReservedKeywords, total=False):
+    """Filter recordings by various attributes."""
+
+    call_control_id: str
+    """
+    If present, recordings will be filtered to those with a matching
+    `call_control_id`.
+    """
+
+    call_leg_id: str
+    """If present, recordings will be filtered to those with a matching call_leg_id."""
+
+    call_session_id: str
+    """
+    If present, recordings will be filtered to those with a matching
+    call_session_id.
+    """
+
+    conference_id: str
+    """Returns only recordings associated with a given conference."""
+
+    conference_region: str
+    """
+    If present, recordings will be filtered to those with a matching
+    `conference_region`.
+    """
+
+    connection_id: str
+    """
+    If present, recordings will be filtered to those with a matching `connection_id`
+    attribute (case-sensitive).
+    """
+
+    created_at: FilterCreatedAt
+
+    end_time: FilterEndTime
+
+    sip_call_id: str
+    """
+    If present, recordings will be filtered to those with a matching `sip_call_id`
+    attribute. Matching is case-sensitive.
+    """
+
+    start_time: FilterStartTime
+
+    to: str
+    """
+    If present, recordings will be filtered to those with a matching `to` attribute
+    (case-sensitive).
+    """

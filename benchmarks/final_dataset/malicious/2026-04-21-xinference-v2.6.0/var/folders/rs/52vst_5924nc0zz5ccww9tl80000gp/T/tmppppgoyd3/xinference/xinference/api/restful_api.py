@@ -1,0 +1,2468 @@
+# Copyright 2022-2026 XProbe Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import asyncio
+import inspect
+import ipaddress
+import json
+import logging
+import multiprocessing
+import os
+import pprint
+import time
+import uuid
+import warnings
+from typing import Any, List, Optional, Union, get_type_hints
+
+import gradio as gr
+import xoscar as xo
+from aioprometheus import REGISTRY, MetricsMiddleware
+from aioprometheus.asgi.starlette import metrics
+from fastapi import (
+    APIRouter,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from PIL import Image
+from sse_starlette.sse import EventSourceResponse
+from starlette.responses import PlainTextResponse, RedirectResponse
+from uvicorn import Config, Server
+from xoscar.utils import get_next_port
+
+from ..constants import (
+    XINFERENCE_ALLOWED_IPS,
+    XINFERENCE_DEFAULT_CANCEL_BLOCK_DURATION,
+    XINFERENCE_DEFAULT_ENDPOINT_PORT,
+    XINFERENCE_DISABLE_METRICS,
+    XINFERENCE_ENABLE_OTEL,
+    XINFERENCE_SSE_PING_ATTEMPTS_SECONDS,
+)
+from ..core.event import Event, EventCollectorActor, EventType
+from ..core.supervisor import SupervisorActor
+from ..core.utils import CancelMixin
+from ..types import (
+    CreateChatCompletion,
+    CreateMessage,
+    PeftModelConfig,
+    max_tokens_field,
+)
+from .oauth2.auth_service import AuthService
+from .responses import JSONResponse
+from .schemas import (
+    AutoConfigLLMRequest,
+    BuildGradioInterfaceRequest,
+    BuildGradioMediaInterfaceRequest,
+    CreateCompletionRequest,
+    CreateEmbeddingRequest,
+    RegisterModelRequest,
+    RerankRequest,
+    SDAPIImg2imgRequst,
+    SDAPIOptionsRequest,
+    SDAPITxt2imgRequst,
+    SpeechRequest,
+    TextToImageRequest,
+    TextToVideoRequest,
+    UpdateModelRequest,
+)
+from .utils import require_model
+
+logger = logging.getLogger(__name__)
+
+
+class RESTfulAPI(CancelMixin):
+    # Add new class attributes
+    _allowed_ip_list: Optional[List[ipaddress.IPv4Network]] = None
+
+    def __init__(
+        self,
+        supervisor_address: str,
+        host: str,
+        port: int,
+        auth_config_file: Optional[str] = None,
+    ):
+        super().__init__()
+        self._supervisor_address = supervisor_address
+        self._host = host
+        self._port = port
+        self._supervisor_ref = None
+        self._event_collector_ref = None
+        self._auth_service = AuthService(auth_config_file)
+        self._router = APIRouter()
+        self._app = FastAPI()
+        # Initialize allowed IP list once
+        self._init_allowed_ip_list()
+
+    def _init_allowed_ip_list(self):
+        """Initialize the allowed IP list from environment variable."""
+        if RESTfulAPI._allowed_ip_list is None:
+            # ie: export XINFERENCE_ALLOWED_IPS=192.168.1.0/24
+            allowed_ips = XINFERENCE_ALLOWED_IPS
+            if allowed_ips:
+                RESTfulAPI._allowed_ip_list = []
+                for ip in allowed_ips.split(","):
+                    ip = ip.strip()
+                    try:
+                        # Try parsing as network/CIDR
+                        if "/" in ip:
+                            RESTfulAPI._allowed_ip_list.append(ipaddress.ip_network(ip))
+                        else:
+                            # Parse as single IP
+                            RESTfulAPI._allowed_ip_list.append(
+                                ipaddress.ip_network(f"{ip}/32")
+                            )
+                    except ValueError:
+                        logger.error(
+                            f"Invalid IP address or network: {ip}", exc_info=True
+                        )
+                        continue
+
+    def _is_ip_allowed(self, ip: str) -> bool:
+        """Check if an IP is allowed based on configured rules."""
+        if not RESTfulAPI._allowed_ip_list:
+            return True
+
+        try:
+            client_ip = ipaddress.ip_address(ip)
+            return any(
+                client_ip in allowed_net for allowed_net in RESTfulAPI._allowed_ip_list
+            )
+        except ValueError:
+            return False
+
+    def is_authenticated(self):
+        return False if self._auth_service.config is None else True
+
+    @staticmethod
+    def handle_request_limit_error(e: Exception):
+        if "Rate limit reached" in str(e):
+            raise HTTPException(status_code=429, detail=str(e))
+
+    @staticmethod
+    def _set_trace_model(model_uid: Optional[str]) -> None:
+        if not model_uid:
+            return
+
+        try:
+            from opentelemetry.trace import get_current_span
+
+            span = get_current_span()
+            if span is not None and span.is_recording():
+                span.set_attribute("xinference.model_uid", model_uid)
+        except ImportError:
+            return
+        except Exception:
+            logger.debug("Failed to attach model uid to current trace span.")
+
+    @staticmethod
+    def _set_trace_model_type(model_type: Optional[str]) -> None:
+        if not model_type:
+            return
+
+        try:
+            from opentelemetry.trace import get_current_span
+
+            span = get_current_span()
+            if span is not None and span.is_recording():
+                span.set_attribute("xinference.model_type", model_type)
+        except ImportError:
+            return
+        except Exception:
+            logger.debug("Failed to attach model type to current trace span.")
+
+    async def _get_supervisor_ref(self) -> xo.ActorRefType[SupervisorActor]:
+        if self._supervisor_ref is None:
+            self._supervisor_ref = await xo.actor_ref(
+                address=self._supervisor_address, uid=SupervisorActor.default_uid()
+            )
+        return self._supervisor_ref
+
+    async def _get_event_collector_ref(self) -> xo.ActorRefType[EventCollectorActor]:
+        if self._event_collector_ref is None:
+            self._event_collector_ref = await xo.actor_ref(
+                address=self._supervisor_address, uid=EventCollectorActor.default_uid()
+            )
+        return self._event_collector_ref
+
+    async def _report_error_event(self, model_uid: Optional[str], content: str) -> None:
+        if model_uid is None:
+            return
+        try:
+            event_collector_ref = await self._get_event_collector_ref()
+            await event_collector_ref.report_event(
+                model_uid,
+                Event(
+                    event_type=EventType.ERROR,
+                    event_ts=int(time.time()),
+                    event_content=content,
+                ),
+            )
+        except Exception:
+            logger.exception(
+                "Report error event failed, model: %s, content: %s", model_uid, content
+            )
+
+    def serve(self, logging_conf: Optional[dict] = None):
+        self._app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+        @self._app.middleware("http")
+        async def ip_restriction_middleware(request: Request, call_next):
+            client_ip = request.client.host
+            if not self._is_ip_allowed(client_ip):
+                return PlainTextResponse(
+                    status_code=403, content=f"Access denied for IP: {client_ip}\n"
+                )
+            response = await call_next(request)
+            return response
+
+        # Initialise OpenTelemetry tracing & metrics (no-op when disabled)
+        if XINFERENCE_ENABLE_OTEL:
+            try:
+                from ..core.otel import setup_otel
+
+                setup_otel(self._app, register_worker_metrics=False)
+            except Exception:
+                logger.exception(
+                    "Failed to initialise OpenTelemetry — continuing without OTEL."
+                )
+
+        @self._app.exception_handler(500)
+        async def internal_exception_handler(request: Request, exc: Exception):
+            logger.exception("Handling request %s failed: %s", request.url, exc)
+            return PlainTextResponse(
+                status_code=500, content=f"Internal Server Error: {exc}"
+            )
+
+        # Attach API instance for dependency injection (Depends(get_api), etc.)
+        self._app.state.api = self
+
+        # Register all domain routes from routers/ modules
+        from .routers import register_all_routes
+
+        register_all_routes(self)
+
+        if XINFERENCE_DISABLE_METRICS:
+            logger.info(
+                "Supervisor metrics is disabled due to the environment XINFERENCE_DISABLE_METRICS=1"
+            )
+            self._app.include_router(self._router)
+        else:
+            # Clear the global Registry for the MetricsMiddleware, or
+            # the MetricsMiddleware will register duplicated metrics if the port
+            # conflict (This serve method run more than once).
+            REGISTRY.clear()
+            self._app.add_middleware(MetricsMiddleware)
+            self._app.include_router(self._router)
+            self._app.add_route("/metrics", metrics)
+
+        # Check all the routes returns Response.
+        # This is to avoid `jsonable_encoder` performance issue:
+        # https://github.com/xorbitsai/inference/issues/647
+        invalid_routes = []
+        try:
+            for router in self._router.routes:
+                return_annotation = router.endpoint.__annotations__.get("return")
+                # Resolve string annotations (e.g. under __future__ annotations)
+                if isinstance(return_annotation, str):
+                    try:
+                        hints = get_type_hints(router.endpoint)
+                        return_annotation = hints.get("return")
+                    except Exception:
+                        pass
+                    # Fallback: resolve by name from the endpoint's module globals
+                    if isinstance(return_annotation, str):
+                        globals = getattr(router.endpoint, "__globals__", {})
+                        return_annotation = globals.get(
+                            return_annotation, return_annotation
+                        )
+                if not inspect.isclass(return_annotation) or not issubclass(
+                    return_annotation, Response
+                ):
+                    invalid_routes.append(
+                        (router.path, router.endpoint, return_annotation)
+                    )
+        except Exception:
+            pass  # In case that some Python version does not have __annotations__
+        if invalid_routes:
+            raise Exception(
+                f"The return value type of the following routes is not Response: \n"
+                f"{pprint.pformat(invalid_routes)}"
+            )
+
+        class SPAStaticFiles(StaticFiles):
+            async def get_response(self, path: str, scope):
+                response = await super().get_response(path, scope)
+                if response.status_code == 404:
+                    response = await super().get_response(".", scope)
+                return response
+
+        try:
+            package_file_path = __import__("xinference").__file__
+            assert package_file_path is not None
+            lib_location = os.path.abspath(os.path.dirname(package_file_path))
+            ui_location = os.path.join(lib_location, "ui/web/ui/build/")
+        except ImportError as e:
+            raise ImportError(f"Xinference is imported incorrectly: {e}")
+
+        if os.path.exists(ui_location):
+
+            @self._app.get("/")
+            def read_main():
+                response = RedirectResponse(url="/ui/")
+                return response
+
+            self._app.mount(
+                "/ui/",
+                SPAStaticFiles(directory=ui_location, html=True),
+            )
+        else:
+            warnings.warn(
+                f"""
+            Xinference ui is not built at expected directory: {ui_location}
+            To resolve this warning, navigate to {os.path.join(lib_location, "ui/web/ui/")}
+            And build the Xinference ui by running "npm run build"
+            """
+            )
+
+        config = Config(
+            app=self._app, host=self._host, port=self._port, log_config=logging_conf
+        )
+        server = Server(config)
+        server.run()
+
+    async def _get_builtin_prompts(self) -> JSONResponse:
+        """
+        For internal usage
+        """
+        try:
+            data = await (await self._get_supervisor_ref()).get_builtin_prompts()
+            return JSONResponse(content=data)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def _get_builtin_families(self) -> JSONResponse:
+        """
+        For internal usage
+        """
+        try:
+            data = await (await self._get_supervisor_ref()).get_builtin_families()
+            return JSONResponse(content=data)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def build_llm_registration_from_config(
+        self, request: Request
+    ) -> JSONResponse:
+        try:
+            body = AutoConfigLLMRequest.parse_obj(await request.json())
+            from ..model.llm.config_parser import (
+                build_llm_registration_from_local_config,
+            )
+
+            data = build_llm_registration_from_local_config(
+                model_path=body.model_path,
+                model_family=body.model_family,
+            )
+            return JSONResponse(content=data)
+        except ValueError as re:
+            logger.error(re, exc_info=True)
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def list_models(self) -> JSONResponse:
+        try:
+            models = await (await self._get_supervisor_ref()).list_models()
+
+            model_list = []
+            for model_id, model_info in models.items():
+                model_list.append(
+                    {
+                        "id": model_id,
+                        "object": "model",
+                        "created": 0,
+                        "owned_by": "xinference",
+                        **model_info,
+                    }
+                )
+            response = {"object": "list", "data": model_list}
+
+            return JSONResponse(content=response)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def anthropic_list_models(self) -> JSONResponse:
+        """Anthropic-compatible models endpoint"""
+        try:
+
+            # Get running models from xinference
+            running_models = await (await self._get_supervisor_ref()).list_models()
+
+            # For backward compatibility with tests, only return running models by default
+            model_list = []
+
+            # Add running models to the list
+            for model_id, model_info in running_models.items():
+                anthropic_model = {
+                    "id": model_id,
+                    "object": "model",
+                    "created": 0,
+                    "display_name": model_info.get("model_name", model_id),
+                    "type": model_info.get("model_type", "model"),
+                    "max_tokens": model_info.get("context_length", 4096),
+                }
+                model_list.append(anthropic_model)
+
+            return JSONResponse(content=model_list)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def anthropic_get_model(self, model_id: str) -> JSONResponse:
+        """Anthropic-compatible model retrieval endpoint"""
+        try:
+            models = await (await self._get_supervisor_ref()).list_models()
+
+            model_info = models[model_id]
+
+            # Convert to Anthropic format
+            anthropic_model = {
+                "id": model_id,  # Return the original requested ID
+                "object": "model",
+                "created": 0,
+                "display_name": model_info.get("model_name", model_id),
+                "type": model_info.get("model_type", "model"),
+                "max_tokens": model_info.get("context_length", 4096),
+                **model_info,
+            }
+
+            return JSONResponse(content=anthropic_model)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def describe_model(self, model_uid: str) -> JSONResponse:
+        try:
+            data = await (await self._get_supervisor_ref()).describe_model(model_uid)
+            return JSONResponse(content=data)
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            raise HTTPException(status_code=400, detail=str(ve))
+
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def launch_model(
+        self, request: Request, wait_ready: bool = Query(True)
+    ) -> JSONResponse:
+        payload = await request.json()
+        model_uid = payload.get("model_uid")
+        model_name = payload.get("model_name")
+        model_engine = payload.get("model_engine")
+        model_size_in_billions = payload.get("model_size_in_billions")
+        model_format = payload.get("model_format")
+        quantization = payload.get("quantization")
+        model_type = payload.get("model_type", "LLM")
+        replica = payload.get("replica", 1)
+        n_gpu = payload.get("n_gpu", "auto")
+        request_limits = payload.get("request_limits", None)
+        peft_model_config = payload.get("peft_model_config", None)
+        worker_ip = payload.get("worker_ip", None)
+        gpu_idx = payload.get("gpu_idx", None)
+        download_hub = payload.get("download_hub", None)
+        model_path = payload.get("model_path", None)
+        enable_virtual_env = payload.get("enable_virtual_env", None)
+        virtual_env_packages = payload.get("virtual_env_packages", None)
+        envs = payload.get("envs", None)
+
+        exclude_keys = {
+            "model_uid",
+            "model_name",
+            "model_engine",
+            "model_size_in_billions",
+            "model_format",
+            "quantization",
+            "model_type",
+            "replica",
+            "n_gpu",
+            "request_limits",
+            "peft_model_config",
+            "worker_ip",
+            "gpu_idx",
+            "download_hub",
+            "model_path",
+            "enable_virtual_env",
+            "virtual_env_packages",
+            "envs",
+        }
+
+        kwargs = {
+            key: value for key, value in payload.items() if key not in exclude_keys
+        }
+
+        if not model_name:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid input. Please specify the `model_name` field.",
+            )
+        if not model_engine and model_type == "LLM":
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid input. Please specify the `model_engine` field.",
+            )
+
+        if isinstance(gpu_idx, int):
+            gpu_idx = [gpu_idx]
+        if gpu_idx:
+            if len(gpu_idx) % replica:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid input. Allocated gpu must be a multiple of replica.",
+                )
+
+        if peft_model_config is not None:
+            peft_model_config = PeftModelConfig.from_dict(peft_model_config)
+        else:
+            peft_model_config = None
+
+        try:
+            model_uid = await (await self._get_supervisor_ref()).launch_builtin_model(
+                model_uid=model_uid,
+                model_name=model_name,
+                model_engine=model_engine,
+                model_size_in_billions=model_size_in_billions,
+                model_format=model_format,
+                quantization=quantization,
+                model_type=model_type,
+                replica=replica,
+                n_gpu=n_gpu,
+                request_limits=request_limits,
+                wait_ready=wait_ready,
+                peft_model_config=peft_model_config,
+                worker_ip=worker_ip,
+                gpu_idx=gpu_idx,
+                download_hub=download_hub,
+                model_path=model_path,
+                enable_virtual_env=enable_virtual_env,
+                virtual_env_packages=virtual_env_packages,
+                envs=envs,
+                **kwargs,
+            )
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            raise HTTPException(status_code=400, detail=str(ve))
+        except RuntimeError as re:
+            logger.error(str(re), exc_info=True)
+            raise HTTPException(status_code=503, detail=str(re))
+        except asyncio.CancelledError as ce:
+            # cancelled by user
+            logger.error(str(ce), exc_info=True)
+            raise HTTPException(status_code=499, detail=str(ce))
+        except Exception as e:
+            logger.error(str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return JSONResponse(content={"model_uid": model_uid})
+
+    async def get_instance_info(
+        self,
+        model_name: Optional[str] = Query(None),
+        model_uid: Optional[str] = Query(None),
+    ) -> JSONResponse:
+        try:
+            infos = await (await self._get_supervisor_ref()).get_instance_info(
+                model_name, model_uid
+            )
+        except Exception as e:
+            logger.error(str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content=infos)
+
+    async def get_model_replicas(self, model_uid: str) -> JSONResponse:
+        """Get detailed status of all replicas for a model"""
+        try:
+            replicas = await (await self._get_supervisor_ref()).get_replica_statuses(
+                model_uid
+            )
+            return JSONResponse(content=replicas)
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def get_launch_model_progress(self, model_uid: str) -> JSONResponse:
+        try:
+            progress = await (
+                await self._get_supervisor_ref()
+            ).get_launch_builtin_model_progress(model_uid)
+        except Exception as e:
+            logger.error(str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content={"progress": progress})
+
+    async def cancel_launch_model(self, model_uid: str) -> JSONResponse:
+        try:
+            await (await self._get_supervisor_ref()).cancel_launch_builtin_model(
+                model_uid
+            )
+        except Exception as e:
+            logger.error(str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content=None)
+
+    async def launch_model_by_version(
+        self, request: Request, wait_ready: bool = Query(True)
+    ) -> JSONResponse:
+        payload = await request.json()
+        model_uid = payload.get("model_uid")
+        model_engine = payload.get("model_engine")
+        model_type = payload.get("model_type")
+        model_version = payload.get("model_version")
+        replica = payload.get("replica", 1)
+        n_gpu = payload.get("n_gpu", "auto")
+
+        try:
+            model_uid = await (
+                await self._get_supervisor_ref()
+            ).launch_model_by_version(
+                model_uid=model_uid,
+                model_engine=model_engine,
+                model_type=model_type,
+                model_version=model_version,
+                replica=replica,
+                n_gpu=n_gpu,
+                wait_ready=wait_ready,
+            )
+        except Exception as e:
+            logger.error(str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content={"model_uid": model_uid})
+
+    async def get_model_versions(
+        self, model_type: str, model_name: str
+    ) -> JSONResponse:
+        try:
+            content = await (await self._get_supervisor_ref()).get_model_versions(
+                model_type, model_name
+            )
+            return JSONResponse(content=content)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def build_gradio_interface(
+        self, model_uid: str, request: Request
+    ) -> JSONResponse:
+        """
+        Separate build_interface with launch_model
+        build_interface requires RESTful Client for API calls
+        but calling API in async function does not return
+        """
+        payload = await request.json()
+        body = BuildGradioInterfaceRequest.parse_obj(payload)
+        assert self._app is not None
+        assert body.model_type == "LLM"
+
+        from ..ui.gradio.chat_interface import GradioInterface
+
+        try:
+            access_token = request.headers.get("Authorization")
+            internal_host = "localhost" if self._host == "0.0.0.0" else self._host
+            interface = GradioInterface(
+                endpoint="http://" + internal_host + ":" + str(self._port),
+                model_uid=model_uid,
+                model_name=body.model_name,
+                model_size_in_billions=body.model_size_in_billions,
+                model_type=body.model_type,
+                model_format=body.model_format,
+                quantization=body.quantization,
+                context_length=body.context_length,
+                model_ability=body.model_ability,
+                model_description=body.model_description,
+                model_lang=body.model_lang,
+                access_token=access_token,
+            ).build()
+            gr.mount_gradio_app(self._app, interface, f"/{model_uid}")
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            raise HTTPException(status_code=400, detail=str(ve))
+
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return JSONResponse(content={"model_uid": model_uid})
+
+    async def build_gradio_media_interface(
+        self, model_uid: str, request: Request
+    ) -> JSONResponse:
+        """
+        Build a Gradio interface for image processing models.
+        """
+        payload = await request.json()
+        body = BuildGradioMediaInterfaceRequest.parse_obj(payload)
+        assert self._app is not None
+        assert body.model_type in ("image", "video", "audio")
+
+        from ..ui.gradio.media_interface import MediaInterface
+
+        try:
+            access_token = request.headers.get("Authorization")
+            internal_host = "localhost" if self._host == "0.0.0.0" else self._host
+            interface = MediaInterface(
+                endpoint="http://" + internal_host + ":" + str(self._port),
+                model_uid=model_uid,
+                model_family=body.model_family,
+                model_name=body.model_name,
+                model_id=body.model_id,
+                model_revision=body.model_revision,
+                controlnet=body.controlnet,
+                access_token=access_token,
+                model_ability=body.model_ability,
+                model_type=body.model_type,
+            ).build()
+
+            gr.mount_gradio_app(self._app, interface, f"/{model_uid}")
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            raise HTTPException(status_code=400, detail=str(ve))
+
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return JSONResponse(content={"model_uid": model_uid})
+
+    async def terminate_model(self, model_uid: str) -> JSONResponse:
+        try:
+            assert self._app is not None
+            await (await self._get_supervisor_ref()).terminate_model(model_uid)
+            self._app.router.routes = [
+                route
+                for route in self._app.router.routes
+                if not (
+                    hasattr(route, "path")
+                    and isinstance(route.path, str)
+                    and route.path == "/" + model_uid
+                )
+            ]
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content=None)
+
+    async def terminate_model_replica(
+        self, model_uid: str, replica_id: int
+    ) -> JSONResponse:
+        try:
+            assert self._app is not None
+            remaining_replicas = await (
+                await self._get_supervisor_ref()
+            ).terminate_model_replica(model_uid, replica_id)
+            if remaining_replicas == 0:
+                self._app.router.routes = [
+                    route
+                    for route in self._app.router.routes
+                    if not (
+                        hasattr(route, "path")
+                        and isinstance(route.path, str)
+                        and route.path == "/" + model_uid
+                    )
+                ]
+            return JSONResponse(content={"remaining_replicas": remaining_replicas})
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def _get_model_last_error(self, replica_model_uid: bytes, e: Exception):
+        if not isinstance(e, xo.ServerClosed):
+            return e
+        try:
+            model_status = await (await self._get_supervisor_ref()).get_model_status(
+                replica_model_uid.decode("utf-8")
+            )
+            if model_status is not None and model_status.last_error:
+                return Exception(model_status.last_error)
+        except Exception as ex:
+            return ex
+        return e
+
+    async def create_completion(self, request: Request) -> Response:
+        raw_body = await request.json()
+        body = CreateCompletionRequest.parse_obj(raw_body)
+        exclude = {
+            "prompt",
+            "model",
+            "n",
+            "best_of",
+            "logit_bias",
+            "logit_bias_type",
+            "user",
+        }
+        raw_kwargs = {k: v for k, v in raw_body.items() if k not in exclude}
+        kwargs = body.dict(exclude_unset=True, exclude=exclude)
+
+        # guided_decoding params
+        kwargs.update(self.extract_guided_params(raw_body=raw_body))
+
+        # TODO: Decide if this default value override is necessary #1061
+        if body.max_tokens is None:
+            kwargs["max_tokens"] = max_tokens_field.default
+
+        if body.logit_bias is not None:
+            raise HTTPException(status_code=501, detail="Not implemented")
+
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("llm")
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        if body.stream:
+
+            async def stream_results():
+                iterator = None
+                try:
+                    try:
+                        iterator = await model.generate(
+                            body.prompt, kwargs, raw_params=raw_kwargs
+                        )
+                    except RuntimeError as re:
+                        self.handle_request_limit_error(re)
+                    async for item in iterator:
+                        yield item
+                except asyncio.CancelledError:
+                    logger.info(
+                        f"Disconnected from client (via refresh/close) {request.client} during generate."
+                    )
+                    return
+                except Exception as ex:
+                    ex = await self._get_model_last_error(model.uid, ex)
+                    logger.exception("Completion stream got an error: %s", ex)
+                    await self._report_error_event(model_uid, str(ex))
+                    # https://github.com/openai/openai-python/blob/e0aafc6c1a45334ac889fe3e54957d309c3af93f/src/openai/_streaming.py#L107
+                    yield dict(data=json.dumps({"error": str(ex)}))
+                    return
+                finally:
+                    await model.decrease_serve_count()
+
+            return EventSourceResponse(
+                stream_results(), ping=XINFERENCE_SSE_PING_ATTEMPTS_SECONDS
+            )
+        else:
+            try:
+                data = await model.generate(body.prompt, kwargs, raw_params=raw_kwargs)
+                return Response(data, media_type="application/json")
+            except Exception as e:
+                e = await self._get_model_last_error(model.uid, e)
+                logger.error(e, exc_info=True)
+                await self._report_error_event(model_uid, str(e))
+                self.handle_request_limit_error(e)
+                raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_message(self, request: Request) -> Response:
+        raw_body = await request.json()
+        body = CreateMessage.parse_obj(raw_body)
+
+        exclude = {
+            "model",
+            "messages",
+            "stream",
+            "stop_sequences",
+            "metadata",
+            "tool_choice",
+            "tools",
+        }
+        raw_kwargs = {k: v for k, v in raw_body.items() if k not in exclude}
+        kwargs = body.dict(exclude_unset=True, exclude=exclude)
+
+        # guided_decoding params
+        kwargs.update(self.extract_guided_params(raw_body=raw_body))
+
+        # TODO: Decide if this default value override is necessary #1061
+        if body.max_tokens is None:
+            kwargs["max_tokens"] = max_tokens_field.default
+
+        messages = body.messages and list(body.messages)
+
+        if not messages or messages[-1].get("role") not in ["user", "assistant"]:
+            raise HTTPException(
+                status_code=400, detail="Invalid input. Please specify the prompt."
+            )
+
+        # Handle tools parameter
+        if hasattr(body, "tools") and body.tools:
+            kwargs["tools"] = list(body.tools)
+
+        # Handle tool_choice parameter
+        if hasattr(body, "tool_choice") and body.tool_choice:
+            kwargs["tool_choice"] = body.tool_choice
+
+        # Get model mapping
+        try:
+            running_models = await (await self._get_supervisor_ref()).list_models()
+        except Exception as e:
+            logger.error(f"Failed to get model mapping: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to get model mapping")
+
+        if not running_models:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No running models available. Please start a model in xinference first.",
+            )
+
+        requested_model_id = body.model
+        if "claude" in requested_model_id:
+            requested_model_id = list(running_models.keys())[0]
+
+        if requested_model_id not in running_models:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model '{requested_model_id}' is not available. Available models: {list(running_models.keys())}",
+            )
+        else:
+            model_uid = requested_model_id
+
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("llm")
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        if body.stream:
+
+            async def stream_results():
+                iterator = None
+                try:
+                    try:
+                        iterator = await model.chat(
+                            messages, kwargs, raw_params=raw_kwargs
+                        )
+                    except RuntimeError as re:
+                        self.handle_request_limit_error(re)
+
+                    # Check if iterator is actually an async iterator
+                    if hasattr(iterator, "__aiter__"):
+                        async for item in iterator:
+                            yield item
+                    elif isinstance(iterator, (str, bytes)):
+                        # Handle case where chat returns bytes/string instead of iterator
+                        if isinstance(iterator, bytes):
+                            try:
+                                content = iterator.decode("utf-8")
+                            except UnicodeDecodeError:
+                                content = str(iterator)
+                        else:
+                            content = iterator
+                        yield dict(data=json.dumps({"content": content}))
+                    else:
+                        # Fallback: try to iterate normally
+                        try:
+                            for item in iterator:
+                                yield item
+                        except TypeError:
+                            # If not iterable, yield as single result
+                            yield dict(data=json.dumps({"content": str(iterator)}))
+
+                    yield "[DONE]"
+                except asyncio.CancelledError:
+                    logger.info(
+                        f"Disconnected from client (via refresh/close) {request.client} during chat."
+                    )
+                    return
+                except Exception as ex:
+                    ex = await self._get_model_last_error(model.uid, ex)
+                    logger.exception("Message stream got an error: %s", ex)
+                    await self._report_error_event(model_uid, str(ex))
+                    yield dict(data=json.dumps({"error": str(ex)}))
+                    return
+                finally:
+                    await model.decrease_serve_count()
+
+            return EventSourceResponse(
+                stream_results(), ping=XINFERENCE_SSE_PING_ATTEMPTS_SECONDS
+            )
+        else:
+            try:
+                data = await model.chat(messages, kwargs, raw_params=raw_kwargs)
+                # Convert OpenAI format to Anthropic format
+                openai_response = json.loads(data)
+                anthropic_response = self._convert_openai_to_anthropic(
+                    openai_response, body.model
+                )
+                return Response(
+                    json.dumps(anthropic_response), media_type="application/json"
+                )
+            except Exception as e:
+                e = await self._get_model_last_error(model.uid, e)
+                logger.error(e, exc_info=True)
+                await self._report_error_event(model_uid, str(e))
+                self.handle_request_limit_error(e)
+                raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_embedding(self, request: Request) -> Response:
+        payload = await request.json()
+        body = CreateEmbeddingRequest.parse_obj(payload)
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("embedding")
+        exclude = {
+            "model",
+            "input",
+            "user",
+            "encoding_format",
+        }
+        kwargs = {key: value for key, value in payload.items() if key not in exclude}
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            kwargs["model_uid"] = model_uid
+            embedding = await model.create_embedding(body.input, **kwargs)
+            return Response(embedding, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def convert_ids_to_tokens(self, request: Request) -> Response:
+        payload = await request.json()
+        body = CreateEmbeddingRequest.parse_obj(payload)
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("embedding")
+        exclude = {
+            "model",
+            "input",
+            "user",
+        }
+        kwargs = {key: value for key, value in payload.items() if key not in exclude}
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            decoded_texts = await model.convert_ids_to_tokens(body.input, **kwargs)
+            return Response(decoded_texts, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def rerank(self, request: Request) -> Response:
+        payload = await request.json()
+        body = RerankRequest.parse_obj(payload)
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("rerank")
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            if body.kwargs is not None:
+                parsed_kwargs = json.loads(body.kwargs)
+            else:
+                parsed_kwargs = {}
+            scores = await model.rerank(
+                body.documents,
+                body.query,
+                top_n=body.top_n,
+                max_chunks_per_doc=body.max_chunks_per_doc,
+                return_documents=body.return_documents,
+                return_len=body.return_len,
+                **parsed_kwargs,
+            )
+            return Response(scores, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_transcriptions(
+        self,
+        request: Request,
+        model: str = Form(...),
+        file: UploadFile = File(media_type="application/octet-stream"),
+        language: Optional[str] = Form(None),
+        prompt: Optional[str] = Form(None),
+        response_format: Optional[str] = Form("json"),
+        temperature: Optional[float] = Form(0),
+        kwargs: Optional[str] = Form(None),
+    ) -> Response:
+        form = await request.form()
+        timestamp_granularities = form.get("timestamp_granularities[]")
+        if timestamp_granularities:
+            timestamp_granularities = [timestamp_granularities]
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("audio")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            if kwargs is not None:
+                parsed_kwargs = json.loads(kwargs)
+            else:
+                parsed_kwargs = {}
+            transcription = await model_ref.transcriptions(
+                audio=await file.read(),
+                language=language,
+                prompt=prompt,
+                response_format=response_format,
+                temperature=temperature,
+                timestamp_granularities=timestamp_granularities,
+                **parsed_kwargs,
+            )
+            return Response(content=transcription, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_translations(
+        self,
+        request: Request,
+        model: str = Form(...),
+        file: UploadFile = File(media_type="application/octet-stream"),
+        language: Optional[str] = Form(None),
+        prompt: Optional[str] = Form(None),
+        response_format: Optional[str] = Form("json"),
+        temperature: Optional[float] = Form(0),
+        kwargs: Optional[str] = Form(None),
+    ) -> Response:
+        form = await request.form()
+        timestamp_granularities = form.get("timestamp_granularities[]")
+        if timestamp_granularities:
+            timestamp_granularities = [timestamp_granularities]
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("audio")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            if kwargs is not None:
+                parsed_kwargs = json.loads(kwargs)
+            else:
+                parsed_kwargs = {}
+            translation = await model_ref.translations(
+                audio=await file.read(),
+                language=language,
+                prompt=prompt,
+                response_format=response_format,
+                temperature=temperature,
+                timestamp_granularities=timestamp_granularities,
+                **parsed_kwargs,
+            )
+            return Response(content=translation, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_speech(
+        self,
+        request: Request,
+        prompt_speech: Optional[UploadFile] = File(
+            None, media_type="application/octet-stream"
+        ),
+        prompt_latent: Optional[UploadFile] = File(
+            None, media_type="application/octet-stream"
+        ),
+    ) -> Response:
+        if prompt_speech or prompt_latent:
+            f = await request.form()
+        else:
+            f = await request.json()
+        body = SpeechRequest.parse_obj(f)
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("audio")
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            if body.kwargs is not None:
+                parsed_kwargs = json.loads(body.kwargs)
+            else:
+                parsed_kwargs = {}
+            if prompt_speech is not None:
+                parsed_kwargs["prompt_speech"] = await prompt_speech.read()
+            if prompt_latent is not None:
+                parsed_kwargs["prompt_latent"] = await prompt_latent.read()
+            out = await model.speech(
+                input=body.input,
+                voice=body.voice,
+                response_format=body.response_format,
+                speed=body.speed,
+                stream=body.stream,
+                **parsed_kwargs,
+            )
+            if body.stream:
+
+                async def stream_results():
+                    try:
+                        async for item in out:
+                            yield item
+                    finally:
+                        await model.decrease_serve_count()
+
+                return EventSourceResponse(
+                    media_type="application/octet-stream",
+                    content=stream_results(),
+                    ping=XINFERENCE_SSE_PING_ATTEMPTS_SECONDS,
+                )
+            else:
+                return Response(media_type="application/octet-stream", content=out)
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_images(self, request: Request) -> Response:
+        body = TextToImageRequest.parse_obj(await request.json())
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            kwargs = json.loads(body.kwargs) if body.kwargs else {}
+            request_id = kwargs.get("request_id")
+            self._add_running_task(request_id)
+            image_list = await model.text_to_image(
+                prompt=body.prompt,
+                n=body.n,
+                size=body.size,
+                response_format=body.response_format,
+                **kwargs,
+            )
+            return Response(content=image_list, media_type="application/json")
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def sdapi_options(self, request: Request) -> Response:
+        body = SDAPIOptionsRequest.parse_obj(await request.json())
+        model_uid = body.sd_model_checkpoint
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+
+        try:
+            if not model_uid:
+                raise ValueError("Unknown model")
+            await (await self._get_supervisor_ref()).get_model(model_uid)
+            return Response()
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            await self._report_error_event(model_uid, str(ve))
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def sdapi_sd_models(self, request: Request) -> Response:
+        try:
+            models = await (await self._get_supervisor_ref()).list_models()
+            sd_models = []
+            for model_name, info in models.items():
+                if info["model_type"] != "image":
+                    continue
+                sd_models.append({"model_name": model_name, "config": None})
+            return JSONResponse(content=sd_models)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def sdapi_samplers(self, request: Request) -> Response:
+        try:
+            from ..model.image.stable_diffusion.core import SAMPLING_METHODS
+
+            samplers = [
+                {"name": sample_method, "alias": [], "options": {}}
+                for sample_method in SAMPLING_METHODS
+            ]
+            return JSONResponse(content=samplers)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def sdapi_txt2img(self, request: Request) -> Response:
+        body = SDAPITxt2imgRequst.parse_obj(await request.json())
+        model_uid = body.model or body.override_settings.get("sd_model_checkpoint")
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            kwargs = dict(body)
+            kwargs.update(json.loads(body.kwargs) if body.kwargs else {})
+            image_list = await model.txt2img(
+                **kwargs,
+            )
+            return Response(content=image_list, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def sdapi_img2img(self, request: Request) -> Response:
+        body = SDAPIImg2imgRequst.parse_obj(await request.json())
+        model_uid = body.model or body.override_settings.get("sd_model_checkpoint")
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            kwargs = dict(body)
+            kwargs.update(json.loads(body.kwargs) if body.kwargs else {})
+            image_list = await model.img2img(
+                **kwargs,
+            )
+            return Response(content=image_list, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_variations(
+        self,
+        model: str = Form(...),
+        image: List[UploadFile] = File(media_type="application/octet-stream"),
+        prompt: Optional[Union[str, List[str]]] = Form(None),
+        negative_prompt: Optional[Union[str, List[str]]] = Form(None),
+        n: Optional[int] = Form(1),
+        response_format: Optional[str] = Form("url"),
+        size: Optional[str] = Form(None),
+        kwargs: Optional[str] = Form(None),
+    ) -> Response:
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            if kwargs is not None:
+                parsed_kwargs = json.loads(kwargs)
+            else:
+                parsed_kwargs = {}
+            request_id = parsed_kwargs.get("request_id")
+            self._add_running_task(request_id)
+
+            # Handle single image or multiple images
+            if len(image) == 1:
+                # Single image
+                image_data = Image.open(image[0].file)
+            else:
+                # Multiple images - convert to list of PIL Images
+                image_data = [Image.open(img.file) for img in image]
+
+            image_list = await model_ref.image_to_image(
+                image=image_data,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                n=n,
+                size=size,
+                response_format=response_format,
+                **parsed_kwargs,
+            )
+            return Response(content=image_list, media_type="application/json")
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_inpainting(
+        self,
+        model: str = Form(...),
+        image: UploadFile = File(media_type="application/octet-stream"),
+        mask_image: UploadFile = File(media_type="application/octet-stream"),
+        prompt: Optional[Union[str, List[str]]] = Form(None),
+        negative_prompt: Optional[Union[str, List[str]]] = Form(None),
+        n: Optional[int] = Form(1),
+        response_format: Optional[str] = Form("url"),
+        size: Optional[str] = Form(None),
+        kwargs: Optional[str] = Form(None),
+    ) -> Response:
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            if kwargs is not None:
+                parsed_kwargs = json.loads(kwargs)
+            else:
+                parsed_kwargs = {}
+            request_id = parsed_kwargs.get("request_id")
+            self._add_running_task(request_id)
+            im = Image.open(image.file)
+            mask_im = Image.open(mask_image.file)
+            if not size:
+                w, h = im.size
+                size = f"{w}*{h}"
+            image_list = await model_ref.inpainting(
+                image=im,
+                mask_image=mask_im,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                n=n,
+                size=size,
+                response_format=response_format,
+                **parsed_kwargs,
+            )
+            return Response(content=image_list, media_type="application/json")
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_ocr(
+        self,
+        model: str = Form(...),
+        image: UploadFile = File(media_type="application/octet-stream"),
+        kwargs: Optional[str] = Form(None),
+    ) -> Response:
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            if kwargs is not None:
+                parsed_kwargs = json.loads(kwargs)
+            else:
+                parsed_kwargs = {}
+            request_id = parsed_kwargs.get("request_id")
+            self._add_running_task(request_id)
+            im = Image.open(image.file)
+            text = await model_ref.ocr(
+                image=im,
+                **parsed_kwargs,
+            )
+            return Response(content=text, media_type="text/plain")
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_image_edits(
+        self,
+        request: Request,
+        prompt: str = Form(...),
+        images: Optional[List[UploadFile]] = File(
+            None, media_type="application/octet-stream"
+        ),
+        mask: Optional[UploadFile] = File(None, media_type="application/octet-stream"),
+        model: Optional[str] = Form(None),
+        n: Optional[int] = Form(1),
+        size: Optional[str] = Form("original"),
+        response_format: Optional[str] = Form("url"),
+        stream: Optional[bool] = Form(False),
+    ) -> Response:
+        """OpenAI-compatible image edit endpoint.
+
+        Accepts multiple image files via:
+            -F "image=@image1.jpeg" -F "image=@image2.jpeg"
+        The first image is used as the primary input; additional images
+        are passed as reference images to the model.
+        """
+        import io
+
+        # If FastAPI didn't bind any files (e.g. client used "image[]" key),
+        # fall back to manual form parsing.
+        image_files: List[UploadFile] = images or []
+        if not image_files:
+            form = await request.form()
+            image_files = (
+                form.getlist("images[]")
+                or form.getlist("images")
+                or form.getlist("image[]")
+                or form.getlist("image")
+            )
+
+        if not image_files:
+            raise HTTPException(
+                status_code=400, detail="At least one image file is required"
+            )
+
+        if response_format not in ("url", "b64_json"):
+            raise HTTPException(
+                status_code=400, detail="response_format must be 'url' or 'b64_json'"
+            )
+
+        # Resolve model when the caller didn't specify one.
+        if not model:
+            try:
+                models = await (await self._get_supervisor_ref()).list_models()
+                image_models = [
+                    name
+                    for name, info in models.items()
+                    if info.get("model_type") == "image"
+                    and (
+                        "image2image" in info.get("model_ability", [])
+                        or "inpainting" in info.get("model_ability", [])
+                    )
+                ]
+                if not image_models:
+                    raise HTTPException(
+                        status_code=400, detail="No available image models found"
+                    )
+                model = image_models[0]
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Failed to get available models: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=500, detail="Failed to get available models"
+                )
+
+        assert model is not None
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("image")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            self._add_running_task(request_id)
+
+            # Read and convert all uploaded images to RGB PIL Images.
+            pil_images: list[Image.Image] = []
+            for img_file in image_files:
+                image_content = await img_file.read()
+                pil_image = Image.open(io.BytesIO(image_content))
+
+                if pil_image.mode == "RGBA":
+                    background = Image.new("RGB", pil_image.size, (255, 255, 255))
+                    background.paste(pil_image, mask=pil_image.split()[3])
+                    pil_image = background
+                elif pil_image.mode != "RGB":
+                    pil_image = pil_image.convert("RGB")
+
+                pil_images.append(pil_image)
+
+            primary_image = pil_images[0]
+            reference_images = pil_images[1:] if len(pil_images) > 1 else []
+
+            # Normalise the size parameter.
+            if size and size != "original":
+                model_size = size.replace("x", "*")
+            else:
+                model_size = ""
+
+            model_params: dict[str, Any] = {
+                "prompt": prompt,
+                "n": n or 1,
+                "size": model_size,
+                "response_format": response_format,
+                "denoising_strength": 0.75,
+                "negative_prompt": " ",
+            }
+            if reference_images:
+                model_params["reference_images"] = reference_images
+
+            # DEBUG: Log the number of files and model params before processing
+            logger.debug(
+                f"Processing image edit with {len(image_files)} image(s), "
+                f"model: {model_uid}, stream: {stream}, mask: {'yes' if mask else 'no'}, "
+                f"model_params: {model_params}"
+            )
+
+            if stream:
+                return EventSourceResponse(
+                    self._stream_image_edit(
+                        model_ref,
+                        primary_image,
+                        reference_images,
+                        mask,
+                        model_params,
+                    )
+                )
+
+            if mask:
+                mask_content = await mask.read()
+                mask_image = Image.open(io.BytesIO(mask_content))
+                result = await model_ref.inpainting(
+                    image=primary_image,
+                    mask_image=mask_image,
+                    **model_params,
+                )
+            else:
+                result = await model_ref.image_to_image(
+                    image=primary_image,
+                    **model_params,
+                )
+
+            return Response(content=result, media_type="application/json")
+
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id or 'unknown'}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def _stream_image_edit(
+        self,
+        model_ref,
+        primary_image: Image.Image,
+        reference_images: list,
+        mask: Optional[UploadFile],
+        model_params: dict,
+    ):
+        """Stream image editing progress and results."""
+        import io
+        import json
+        from datetime import datetime
+
+        try:
+            yield {
+                "event": "start",
+                "data": json.dumps(
+                    {
+                        "type": "image_edit_started",
+                        "timestamp": datetime.now().isoformat(),
+                        "prompt": model_params.get("prompt", ""),
+                        "image_count": 1 + len(reference_images),
+                    }
+                ),
+            }
+
+            if mask:
+                mask_content = await mask.read()
+                mask_image = Image.open(io.BytesIO(mask_content))
+                yield {
+                    "event": "processing",
+                    "data": json.dumps(
+                        {
+                            "type": "mask_loaded",
+                            "timestamp": datetime.now().isoformat(),
+                            "mask_size": mask_image.size,
+                        }
+                    ),
+                }
+                result = await model_ref.inpainting(
+                    image=primary_image,
+                    mask_image=mask_image,
+                    **model_params,
+                )
+            else:
+                yield {
+                    "event": "processing",
+                    "data": json.dumps(
+                        {
+                            "type": "starting_generation",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    ),
+                }
+                result = await model_ref.image_to_image(
+                    image=primary_image,
+                    **model_params,
+                )
+
+            result_data = json.loads(result)
+            yield {
+                "event": "complete",
+                "data": json.dumps(result_data),
+            }
+
+        except Exception as e:
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {
+                        "type": "image_edit_error",
+                        "timestamp": datetime.now().isoformat(),
+                        "error": str(e),
+                    }
+                ),
+            }
+
+    async def create_flexible_infer(self, request: Request) -> Response:
+        payload = await request.json()
+
+        model_uid = payload.get("model")
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("flexible")
+        args = payload.get("args")
+
+        exclude = {"model", "args"}
+        kwargs = {key: value for key, value in payload.items() if key not in exclude}
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            result = await model.infer(*args, **kwargs)
+            return Response(result, media_type="application/json")
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_videos(self, request: Request) -> Response:
+        body = TextToVideoRequest.parse_obj(await request.json())
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("video")
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            kwargs = json.loads(body.kwargs) if body.kwargs else {}
+            request_id = kwargs.get("request_id")
+            self._add_running_task(request_id)
+            video_list = await model.text_to_video(
+                prompt=body.prompt,
+                n=body.n,
+                **kwargs,
+            )
+            return Response(content=video_list, media_type="application/json")
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id or 'unknown'}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_videos_from_images(
+        self,
+        model: str = Form(...),
+        image: UploadFile = File(media_type="application/octet-stream"),
+        prompt: Optional[Union[str, List[str]]] = Form(None),
+        negative_prompt: Optional[Union[str, List[str]]] = Form(None),
+        n: Optional[int] = Form(1),
+        kwargs: Optional[str] = Form(None),
+    ) -> Response:
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("video")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            if kwargs is not None:
+                parsed_kwargs = json.loads(kwargs)
+            else:
+                parsed_kwargs = {}
+            request_id = parsed_kwargs.get("request_id")
+            self._add_running_task(request_id)
+            video_list = await model_ref.image_to_video(
+                image=Image.open(image.file),
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                n=n,
+                **parsed_kwargs,
+            )
+            return Response(content=video_list, media_type="application/json")
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id or 'unknown'}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_videos_from_first_last_frame(
+        self,
+        model: str = Form(...),
+        first_frame: UploadFile = File(media_type="application/octet-stream"),
+        last_frame: UploadFile = File(media_type="application/octet-stream"),
+        prompt: Optional[Union[str, List[str]]] = Form(None),
+        negative_prompt: Optional[Union[str, List[str]]] = Form(None),
+        n: Optional[int] = Form(1),
+        kwargs: Optional[str] = Form(None),
+    ) -> Response:
+        model_uid = model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("video")
+        model_ref = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        request_id = None
+        try:
+            if kwargs is not None:
+                parsed_kwargs = json.loads(kwargs)
+            else:
+                parsed_kwargs = {}
+            request_id = parsed_kwargs.get("request_id")
+            self._add_running_task(request_id)
+            video_list = await model_ref.flf_to_video(
+                first_frame=Image.open(first_frame.file),
+                last_frame=Image.open(last_frame.file),
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                n=n,
+                **parsed_kwargs,
+            )
+            return Response(content=video_list, media_type="application/json")
+        except asyncio.CancelledError:
+            err_str = f"The request has been cancelled: {request_id or 'unknown'}"
+            logger.error(err_str)
+            await self._report_error_event(model_uid, err_str)
+            raise HTTPException(status_code=409, detail=err_str)
+        except Exception as e:
+            e = await self._get_model_last_error(model_ref.uid, e)
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            self.handle_request_limit_error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_chat_completion(self, request: Request) -> Response:
+        raw_body = await request.json()
+        body = CreateChatCompletion.parse_obj(raw_body)
+        exclude = {
+            "prompt",
+            "model",
+            "n",
+            "messages",
+            "logit_bias",
+            "logit_bias_type",
+            "user",
+            "max_completion_tokens",
+        }
+
+        raw_kwargs = {k: v for k, v in raw_body.items() if k not in exclude}
+        kwargs = body.dict(exclude_unset=True, exclude=exclude)
+
+        enable_thinking = raw_body.get("enable_thinking")
+        if enable_thinking is None:
+            extra_body = raw_body.get("extra_body")
+            if isinstance(extra_body, dict):
+                enable_thinking = extra_body.get("enable_thinking")
+        if isinstance(enable_thinking, bool):
+            raw_kwargs.pop("enable_thinking", None)
+            chat_template_kwargs = raw_kwargs.get("chat_template_kwargs") or {}
+            if isinstance(chat_template_kwargs, str):
+                try:
+                    chat_template_kwargs = json.loads(chat_template_kwargs)
+                except json.JSONDecodeError:
+                    chat_template_kwargs = {}
+            if not isinstance(chat_template_kwargs, dict):
+                chat_template_kwargs = {}
+            chat_template_kwargs = dict(chat_template_kwargs)
+            chat_template_kwargs["enable_thinking"] = enable_thinking
+            chat_template_kwargs["thinking"] = enable_thinking
+            raw_kwargs["chat_template_kwargs"] = chat_template_kwargs
+            kwargs["chat_template_kwargs"] = chat_template_kwargs
+
+        # guided_decoding params
+        kwargs.update(self.extract_guided_params(raw_body=raw_body))
+
+        # TODO: Decide if this default value override is necessary #1061
+        if body.max_tokens is None:
+            kwargs["max_tokens"] = max_tokens_field.default
+
+        if body.max_completion_tokens is not None:
+            kwargs["max_tokens"] = body.max_completion_tokens
+
+        if body.logit_bias is not None:
+            raise HTTPException(status_code=501, detail="Not implemented")
+
+        messages = body.messages and list(body.messages) or None
+
+        if not messages or messages[-1].get("role") not in ["user", "system", "tool"]:
+            raise HTTPException(
+                status_code=400, detail="Invalid input. Please specify the prompt."
+            )
+
+        has_tool_message = messages[-1].get("role") == "tool"
+        model_uid = body.model
+        self._set_trace_model(model_uid)
+        self._set_trace_model_type("llm")
+
+        model = await require_model(
+            self._get_supervisor_ref, model_uid, self._report_error_event
+        )
+
+        try:
+            desc = await (await self._get_supervisor_ref()).describe_model(model_uid)
+        except ValueError as ve:
+            logger.error(str(ve), exc_info=True)
+            await self._report_error_event(model_uid, str(ve))
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            await self._report_error_event(model_uid, str(e))
+            raise HTTPException(status_code=500, detail=str(e))
+
+        from ..model.llm.utils import TOOL_CALL_FAMILY
+
+        model_family = desc.get("model_family", "")
+
+        if model_family not in TOOL_CALL_FAMILY:
+            if body.tools:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Only {TOOL_CALL_FAMILY} support tool calls",
+                )
+            if has_tool_message:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Only {TOOL_CALL_FAMILY} support tool messages",
+                )
+
+        if "skip_special_tokens" in raw_kwargs and await model.is_vllm_backend():
+            kwargs["skip_special_tokens"] = raw_kwargs["skip_special_tokens"]
+        if body.stream:
+
+            async def stream_results():
+                iterator = None
+                try:
+                    try:
+                        iterator = await model.chat(
+                            messages,
+                            kwargs,
+                            raw_params=raw_kwargs,
+                        )
+                    except RuntimeError as re:
+                        await self._report_error_event(model_uid, str(re))
+                        self.handle_request_limit_error(re)
+                    async for item in iterator:
+                        yield item
+                    yield "[DONE]"
+                # Note that asyncio.CancelledError does not inherit from Exception.
+                # When the user uses ctrl+c to cancel the streaming chat, asyncio.CancelledError would be triggered.
+                # See https://github.com/sysid/sse-starlette/blob/main/examples/example.py#L48
+                except asyncio.CancelledError:
+                    logger.info(
+                        f"Disconnected from client (via refresh/close) {request.client} during chat."
+                    )
+                    # See https://github.com/sysid/sse-starlette/blob/main/examples/error_handling.py#L13
+                    # Use return to stop the generator from continuing.
+                    # TODO: Cannot yield here. Yield here would leads to error for the next streaming request.
+                    return
+                except Exception as ex:
+                    ex = await self._get_model_last_error(model.uid, ex)
+                    logger.exception("Chat completion stream got an error: %s", ex)
+                    await self._report_error_event(model_uid, str(ex))
+                    # https://github.com/openai/openai-python/blob/e0aafc6c1a45334ac889fe3e54957d309c3af93f/src/openai/_streaming.py#L107
+                    yield dict(data=json.dumps({"error": str(ex)}))
+                    return
+                finally:
+                    await model.decrease_serve_count()
+
+            return EventSourceResponse(
+                stream_results(), ping=XINFERENCE_SSE_PING_ATTEMPTS_SECONDS
+            )
+        else:
+            try:
+                data = await model.chat(
+                    messages,
+                    kwargs,
+                    raw_params=raw_kwargs,
+                )
+                return Response(content=data, media_type="application/json")
+            except Exception as e:
+                e = await self._get_model_last_error(model.uid, e)
+                logger.error(e, exc_info=True)
+                await self._report_error_event(model_uid, str(e))
+                self.handle_request_limit_error(e)
+                raise HTTPException(status_code=500, detail=str(e))
+
+    async def query_engines_by_model_name(
+        self, request: Request, model_name: str, model_type: Optional[str] = None
+    ) -> JSONResponse:
+        try:
+            model_type = model_type or request.path_params.get("model_type", "LLM")
+            enable_virtual_env = request.query_params.get("enable_virtual_env")
+            if enable_virtual_env is not None:
+                enable_virtual_env = enable_virtual_env.lower() in ("1", "true", "yes")
+            content = await (
+                await self._get_supervisor_ref()
+            ).query_engines_by_model_name(
+                model_name,
+                model_type=model_type,
+                enable_virtual_env=enable_virtual_env,
+            )
+            return JSONResponse(content=content)
+        except ValueError as re:
+            logger.error(re, exc_info=True)
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def register_model(self, model_type: str, request: Request) -> JSONResponse:
+        body = RegisterModelRequest.parse_obj(await request.json())
+        model = body.model
+        worker_ip = body.worker_ip
+        persist = body.persist
+
+        try:
+            await (await self._get_supervisor_ref()).register_model(
+                model_type, model, persist, worker_ip
+            )
+        except ValueError as re:
+            logger.error(re, exc_info=True)
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content=None)
+
+    async def unregister_model(self, model_type: str, model_name: str) -> JSONResponse:
+        try:
+            await (await self._get_supervisor_ref()).unregister_model(
+                model_type, model_name
+            )
+        except ValueError as re:
+            logger.error(re, exc_info=True)
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content=None)
+
+    async def update_model_type(self, request: Request) -> JSONResponse:
+        try:
+            # Parse request
+            raw_json = await request.json()
+            body = UpdateModelRequest.parse_obj(raw_json)
+            model_type = body.model_type
+
+            # Get supervisor reference
+            supervisor_ref = await self._get_supervisor_ref()
+
+            # Call supervisor with model_type
+            await supervisor_ref.update_model_type(model_type)
+
+        except ValueError as re:
+            logger.error(f"ValueError in update_model_type API: {re}", exc_info=True)
+            logger.error(f"ValueError details: {type(re).__name__}: {re}")
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(
+                f"Unexpected error in update_model_type API: {e}", exc_info=True
+            )
+            logger.error(f"Error details: {type(e).__name__}: {e}")
+            import traceback
+
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+        response_data = {
+            "data": {
+                "model_type": model_type,
+                "message": f"Successfully updated model type: {model_type}",
+            }
+        }
+
+        return JSONResponse(content=response_data)
+
+    async def list_model_registrations(
+        self, model_type: str, detailed: bool = Query(False)
+    ) -> JSONResponse:
+        try:
+            data = await (await self._get_supervisor_ref()).list_model_registrations(
+                model_type, detailed=detailed
+            )
+            # Remove duplicate model names.
+            model_names = set()
+            final_data = []
+            for item in data:
+                if item["model_name"] not in model_names:
+                    model_names.add(item["model_name"])
+                    final_data.append(item)
+            return JSONResponse(content=final_data)
+        except ValueError as re:
+            logger.error(re, exc_info=True)
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def get_model_registrations(
+        self, model_type: str, model_name: str
+    ) -> JSONResponse:
+        try:
+            data = await (await self._get_supervisor_ref()).get_model_registration(
+                model_type, model_name
+            )
+            return JSONResponse(content=data)
+        except ValueError as re:
+            logger.error(re, exc_info=True)
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def get_model_events(self, model_uid: str) -> JSONResponse:
+        try:
+            event_collector_ref = await self._get_event_collector_ref()
+            events = await event_collector_ref.get_model_events(model_uid)
+            return JSONResponse(content=events)
+        except ValueError as re:
+            logger.error(re, exc_info=True)
+            raise HTTPException(status_code=400, detail=str(re))
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def abort_request(
+        self, request: Request, model_uid: str, request_id: str
+    ) -> JSONResponse:
+        try:
+            payload = await request.json()
+            block_duration = payload.get(
+                "block_duration", XINFERENCE_DEFAULT_CANCEL_BLOCK_DURATION
+            )
+            logger.info(
+                "Abort request with model uid: %s, request id: %s, block duration: %s",
+                model_uid,
+                request_id,
+                block_duration,
+            )
+            supervisor_ref = await self._get_supervisor_ref()
+            res = await supervisor_ref.abort_request(
+                model_uid, request_id, block_duration
+            )
+            self._cancel_running_task(request_id, block_duration)
+            return JSONResponse(content=res)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def list_vllm_supported_model_families(self) -> JSONResponse:
+        try:
+            from ..model.llm.vllm.core import (
+                VLLM_SUPPORTED_CHAT_MODELS,
+                VLLM_SUPPORTED_MODELS,
+            )
+
+            data = {
+                "chat": VLLM_SUPPORTED_CHAT_MODELS,
+                "generate": VLLM_SUPPORTED_MODELS,
+            }
+            return JSONResponse(content=data)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def extract_guided_params(raw_body: dict) -> dict:
+        kwargs = {}
+        raw_extra_body: dict = raw_body.get("extra_body")  # type: ignore
+        if raw_body.get("guided_json"):
+            kwargs["guided_json"] = raw_body.get("guided_json")
+        if raw_body.get("guided_regex") is not None:
+            kwargs["guided_regex"] = raw_body.get("guided_regex")
+        if raw_body.get("guided_choice") is not None:
+            kwargs["guided_choice"] = raw_body.get("guided_choice")
+        if raw_body.get("guided_grammar") is not None:
+            kwargs["guided_grammar"] = raw_body.get("guided_grammar")
+        if raw_body.get("guided_json_object") is not None:
+            kwargs["guided_json_object"] = raw_body.get("guided_json_object")
+        if raw_body.get("guided_decoding_backend") is not None:
+            kwargs["guided_decoding_backend"] = raw_body.get("guided_decoding_backend")
+        if raw_body.get("guided_whitespace_pattern") is not None:
+            kwargs["guided_whitespace_pattern"] = raw_body.get(
+                "guided_whitespace_pattern"
+            )
+        # Parse OpenAI extra_body
+        if raw_extra_body is not None:
+            if raw_extra_body.get("guided_json"):
+                kwargs["guided_json"] = raw_extra_body.get("guided_json")
+            if raw_extra_body.get("guided_regex") is not None:
+                kwargs["guided_regex"] = raw_extra_body.get("guided_regex")
+            if raw_extra_body.get("guided_choice") is not None:
+                kwargs["guided_choice"] = raw_extra_body.get("guided_choice")
+            if raw_extra_body.get("guided_grammar") is not None:
+                kwargs["guided_grammar"] = raw_extra_body.get("guided_grammar")
+            if raw_extra_body.get("guided_json_object") is not None:
+                kwargs["guided_json_object"] = raw_extra_body.get("guided_json_object")
+            if raw_extra_body.get("guided_decoding_backend") is not None:
+                kwargs["guided_decoding_backend"] = raw_extra_body.get(
+                    "guided_decoding_backend"
+                )
+            if raw_extra_body.get("guided_whitespace_pattern") is not None:
+                kwargs["guided_whitespace_pattern"] = raw_extra_body.get(
+                    "guided_whitespace_pattern"
+                )
+            if raw_extra_body.get("platform") is not None:
+                kwargs["platform"] = raw_extra_body.get("platform")
+            if raw_extra_body.get("format") is not None:
+                kwargs["format"] = raw_extra_body.get("format")
+
+        return kwargs
+
+    def _convert_openai_to_anthropic(self, openai_response: dict, model: str) -> dict:
+        """
+        Convert OpenAI response format to Anthropic response format.
+
+        Args:
+            openai_response: OpenAI format response
+            model: Model name
+
+        Returns:
+            Anthropic format response
+        """
+
+        # Extract content and tool calls from OpenAI response
+        content_blocks = []
+        stop_reason = "stop"
+
+        if "choices" in openai_response and len(openai_response["choices"]) > 0:
+            choice = openai_response["choices"][0]
+            message = choice.get("message", {})
+
+            # Handle content text
+            content = message.get("content", "")
+            if content:
+                if isinstance(content, str):
+                    # If content is a string, use it directly
+                    content_blocks.append({"type": "text", "text": content})
+                elif isinstance(content, list):
+                    # If content is a list, extract text from each content block
+                    for content_block in content:
+                        if isinstance(content_block, dict):
+                            if content_block.get("type") == "text":
+                                text = content_block.get("text", "")
+                                if text:
+                                    content_blocks.append(
+                                        {"type": "text", "text": text}
+                                    )
+                            elif "text" in content_block:
+                                # Handle different content block format
+                                text = content_block.get("text", "")
+                                if text:
+                                    content_blocks.append(
+                                        {"type": "text", "text": text}
+                                    )
+
+            # Handle tool calls
+            tool_calls = message.get("tool_calls", [])
+            for tool_call in tool_calls:
+                function = tool_call.get("function", {})
+                arguments = function.get("arguments", "{}")
+                try:
+                    input_data = json.loads(arguments)
+                except json.JSONDecodeError:
+                    input_data = {}
+                tool_use_block = {
+                    "type": "tool_use",
+                    "cache_control": {"type": "ephemeral"},
+                    "id": tool_call.get("id", str(uuid.uuid4())),
+                    "name": function.get("name", ""),
+                    "input": input_data,
+                }
+                content_blocks.append(tool_use_block)
+
+            # Set stop reason based on finish reason
+            finish_reason = choice.get("finish_reason", "stop")
+            if finish_reason == "tool_calls":
+                stop_reason = "tool_use"
+
+        # Build Anthropic response
+        anthropic_response = {
+            "id": str(uuid.uuid4()),
+            "type": "message",
+            "role": "assistant",
+            "content": content_blocks,
+            "model": model,
+            "stop_reason": stop_reason,
+            "stop_sequence": None,
+            "usage": {
+                "input_tokens": openai_response.get("usage", {}).get(
+                    "prompt_tokens", 0
+                ),
+                "output_tokens": openai_response.get("usage", {}).get(
+                    "completion_tokens", 0
+                ),
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 0,
+            },
+        }
+
+        return anthropic_response
+
+
+def run(
+    supervisor_address: str,
+    host: str,
+    port: int,
+    logging_conf: Optional[dict] = None,
+    auth_config_file: Optional[str] = None,
+):
+    logger.info("Starting Xinference at endpoint: http://%s:%s", host, port)
+    try:
+        api = RESTfulAPI(
+            supervisor_address=supervisor_address,
+            host=host,
+            port=port,
+            auth_config_file=auth_config_file,
+        )
+        api.serve(logging_conf=logging_conf)
+    except SystemExit:
+        logger.warning("Failed to create socket with port %d", port)
+        # compare the reference to differentiate between the cases where the user specify the
+        # default port and the user does not specify the port.
+        if port is XINFERENCE_DEFAULT_ENDPOINT_PORT:
+            port = get_next_port()
+            logger.info(f"Found available port: {port}")
+            logger.info("Starting Xinference at endpoint: http://%s:%s", host, port)
+            api = RESTfulAPI(
+                supervisor_address=supervisor_address,
+                host=host,
+                port=port,
+                auth_config_file=auth_config_file,
+            )
+            api.serve(logging_conf=logging_conf)
+        else:
+            raise
+
+
+def run_in_subprocess(
+    supervisor_address: str,
+    host: str,
+    port: int,
+    logging_conf: Optional[dict] = None,
+    auth_config_file: Optional[str] = None,
+) -> multiprocessing.Process:
+    p = multiprocessing.Process(
+        target=run,
+        args=(supervisor_address, host, port, logging_conf, auth_config_file),
+    )
+    p.daemon = True
+    p.start()
+    return p

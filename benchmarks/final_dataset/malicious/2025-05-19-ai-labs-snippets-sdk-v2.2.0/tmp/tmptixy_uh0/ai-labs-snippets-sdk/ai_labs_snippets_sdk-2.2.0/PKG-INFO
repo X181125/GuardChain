@@ -1,0 +1,42 @@
+Metadata-Version: 2.4
+Name: ai-labs-snippets-sdk
+Version: 2.2.0
+Summary: AI Labs Snippets SDK for Python
+Home-page: https://github.com/aliyun-ai-labs/ai-labs-snippets
+Author: ai-labs
+Author-email: ai-labs@alilaba-inc.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: torch==2.6.0
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# AI Labs Snippets SDK
+
+Python SDK for interacting with AI Labs services
+
+## 安装
+
+```bash
+pip install ai-labs-snippets-sdk
+```
+
+## 快速开始
+
+```python
+import ai_labs_snippets_sdk
+
+print(ai_labs_snippets_sdk.model)  # 加载模型设置环境
+```

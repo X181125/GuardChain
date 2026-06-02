@@ -1,0 +1,132 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from typing import Union
+from typing_extensions import TypeAlias
+
+from .fax_failed import FaxFailed
+from .fax_queued import FaxQueued
+from .fax_delivered import FaxDelivered
+from .fax_media_processed import FaxMediaProcessed
+from .fax_sending_started import FaxSendingStarted
+from .campaign_status_update import CampaignStatusUpdate
+from .call_cost_webhook_event import CallCostWebhookEvent
+from .conference_floor_changed import ConferenceFloorChanged
+from .call_hangup_webhook_event import CallHangupWebhookEvent
+from .call_bridged_webhook_event import CallBridgedWebhookEvent
+from .number_order_status_update import NumberOrderStatusUpdate
+from .call_answered_webhook_event import CallAnsweredWebhookEvent
+from .call_enqueued_webhook_event import CallEnqueuedWebhookEvent
+from .transcription_webhook_event import TranscriptionWebhookEvent
+from .call_initiated_webhook_event import CallInitiatedWebhookEvent
+from .call_left_queue_webhook_event import CallLeftQueueWebhookEvent
+from .delivery_update_webhook_event import DeliveryUpdateWebhookEvent
+from .inbound_message_webhook_event import InboundMessageWebhookEvent
+from .call_speak_ended_webhook_event import CallSpeakEndedWebhookEvent
+from .conference_ended_webhook_event import ConferenceEndedWebhookEvent
+from .call_fork_started_webhook_event import CallForkStartedWebhookEvent
+from .call_fork_stopped_webhook_event import CallForkStoppedWebhookEvent
+from .call_gather_ended_webhook_event import CallGatherEndedWebhookEvent
+from .call_refer_failed_webhook_event import CallReferFailedWebhookEvent
+from .call_dtmf_received_webhook_event import CallDtmfReceivedWebhookEvent
+from .call_refer_started_webhook_event import CallReferStartedWebhookEvent
+from .call_siprec_failed_webhook_event import CallSiprecFailedWebhookEvent
+from .call_speak_started_webhook_event import CallSpeakStartedWebhookEvent
+from .conference_created_webhook_event import ConferenceCreatedWebhookEvent
+from .call_playback_ended_webhook_event import CallPlaybackEndedWebhookEvent
+from .call_siprec_started_webhook_event import CallSiprecStartedWebhookEvent
+from .call_siprec_stopped_webhook_event import CallSiprecStoppedWebhookEvent
+from .replaced_link_click_webhook_event import ReplacedLinkClickWebhookEvent
+from .call_ai_gather_ended_webhook_event import CallAIGatherEndedWebhookEvent
+from .call_recording_error_webhook_event import CallRecordingErrorWebhookEvent
+from .call_recording_saved_webhook_event import CallRecordingSavedWebhookEvent
+from .call_refer_completed_webhook_event import CallReferCompletedWebhookEvent
+from .call_playback_started_webhook_event import CallPlaybackStartedWebhookEvent
+from .call_streaming_failed_webhook_event import CallStreamingFailedWebhookEvent
+from .call_streaming_started_webhook_event import CallStreamingStartedWebhookEvent
+from .call_streaming_stopped_webhook_event import CallStreamingStoppedWebhookEvent
+from .conference_speak_ended_webhook_event import ConferenceSpeakEndedWebhookEvent
+from .call_conversation_ended_webhook_event import CallConversationEndedWebhookEvent
+from .conference_speak_started_webhook_event import ConferenceSpeakStartedWebhookEvent
+from .conference_playback_ended_webhook_event import ConferencePlaybackEndedWebhookEvent
+from .conference_recording_saved_webhook_event import ConferenceRecordingSavedWebhookEvent
+from .call_machine_greeting_ended_webhook_event import CallMachineGreetingEndedWebhookEvent
+from .conference_participant_left_webhook_event import ConferenceParticipantLeftWebhookEvent
+from .conference_playback_started_webhook_event import ConferencePlaybackStartedWebhookEvent
+from .call_machine_detection_ended_webhook_event import CallMachineDetectionEndedWebhookEvent
+from .conference_participant_joined_webhook_event import ConferenceParticipantJoinedWebhookEvent
+from .call_ai_gather_partial_results_webhook_event import CallAIGatherPartialResultsWebhookEvent
+from .call_recording_transcription_saved_webhook_event import CallRecordingTranscriptionSavedWebhookEvent
+from .conference_participant_speak_ended_webhook_event import ConferenceParticipantSpeakEndedWebhookEvent
+from .call_machine_premium_greeting_ended_webhook_event import CallMachinePremiumGreetingEndedWebhookEvent
+from .call_conversation_insights_generated_webhook_event import CallConversationInsightsGeneratedWebhookEvent
+from .call_machine_premium_detection_ended_webhook_event import CallMachinePremiumDetectionEndedWebhookEvent
+from .conference_participant_speak_started_webhook_event import ConferenceParticipantSpeakStartedWebhookEvent
+from .conference_participant_playback_ended_webhook_event import ConferenceParticipantPlaybackEndedWebhookEvent
+from .call_ai_gather_message_history_updated_webhook_event import CallAIGatherMessageHistoryUpdatedWebhookEvent
+from .conference_participant_playback_started_webhook_event import ConferenceParticipantPlaybackStartedWebhookEvent
+
+__all__ = ["UnsafeUnwrapWebhookEvent"]
+
+UnsafeUnwrapWebhookEvent: TypeAlias = Union[
+    CallAIGatherEndedWebhookEvent,
+    CallAIGatherMessageHistoryUpdatedWebhookEvent,
+    CallAIGatherPartialResultsWebhookEvent,
+    CallAnsweredWebhookEvent,
+    CallBridgedWebhookEvent,
+    CallConversationEndedWebhookEvent,
+    CallConversationInsightsGeneratedWebhookEvent,
+    CallCostWebhookEvent,
+    CallDtmfReceivedWebhookEvent,
+    CallEnqueuedWebhookEvent,
+    CallForkStartedWebhookEvent,
+    CallForkStoppedWebhookEvent,
+    CallGatherEndedWebhookEvent,
+    CallHangupWebhookEvent,
+    CallInitiatedWebhookEvent,
+    CallLeftQueueWebhookEvent,
+    CallMachineDetectionEndedWebhookEvent,
+    CallMachineGreetingEndedWebhookEvent,
+    CallMachinePremiumDetectionEndedWebhookEvent,
+    CallMachinePremiumGreetingEndedWebhookEvent,
+    CallPlaybackEndedWebhookEvent,
+    CallPlaybackStartedWebhookEvent,
+    CallRecordingErrorWebhookEvent,
+    CallRecordingSavedWebhookEvent,
+    CallRecordingTranscriptionSavedWebhookEvent,
+    CallReferCompletedWebhookEvent,
+    CallReferFailedWebhookEvent,
+    CallReferStartedWebhookEvent,
+    CallSiprecFailedWebhookEvent,
+    CallSiprecStartedWebhookEvent,
+    CallSiprecStoppedWebhookEvent,
+    CallSpeakEndedWebhookEvent,
+    CallSpeakStartedWebhookEvent,
+    CallStreamingFailedWebhookEvent,
+    CallStreamingStartedWebhookEvent,
+    CallStreamingStoppedWebhookEvent,
+    CampaignStatusUpdate,
+    ConferenceCreatedWebhookEvent,
+    ConferenceEndedWebhookEvent,
+    ConferenceFloorChanged,
+    ConferenceParticipantJoinedWebhookEvent,
+    ConferenceParticipantLeftWebhookEvent,
+    ConferenceParticipantPlaybackEndedWebhookEvent,
+    ConferenceParticipantPlaybackStartedWebhookEvent,
+    ConferenceParticipantSpeakEndedWebhookEvent,
+    ConferenceParticipantSpeakStartedWebhookEvent,
+    ConferencePlaybackEndedWebhookEvent,
+    ConferencePlaybackStartedWebhookEvent,
+    ConferenceRecordingSavedWebhookEvent,
+    ConferenceSpeakEndedWebhookEvent,
+    ConferenceSpeakStartedWebhookEvent,
+    DeliveryUpdateWebhookEvent,
+    FaxDelivered,
+    FaxFailed,
+    FaxMediaProcessed,
+    FaxQueued,
+    FaxSendingStarted,
+    InboundMessageWebhookEvent,
+    NumberOrderStatusUpdate,
+    ReplacedLinkClickWebhookEvent,
+    TranscriptionWebhookEvent,
+]

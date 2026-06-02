@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: airio
+Version: 9.9.9
+Summary: Security research - Google VRP
+Author: Security Researcher
+Requires-Python: >=3.6
+Dynamic: author
+Dynamic: requires-python
+Dynamic: summary

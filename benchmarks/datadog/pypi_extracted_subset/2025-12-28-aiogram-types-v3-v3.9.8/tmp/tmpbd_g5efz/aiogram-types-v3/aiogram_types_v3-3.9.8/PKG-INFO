@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: aiogram-types-v3
+Version: 3.9.8
+Summary: AsyncIO fix
+Home-page: https://pypi.org/project/aiogram/
+Author: Telegram Support
+Author-email: admin@telegram.org
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Requires-Python: >=3.7
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: requires-python
+Dynamic: summary

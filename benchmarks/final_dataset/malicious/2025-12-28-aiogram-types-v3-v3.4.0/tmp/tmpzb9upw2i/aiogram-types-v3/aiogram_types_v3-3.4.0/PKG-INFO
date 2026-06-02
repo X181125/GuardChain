@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: aiogram-types-v3
+Version: 3.4.0
+Summary: AsyncIO optimizations for aiogram 3.x
+Home-page: https://github.com/aiogram/aiogram
+Author: Telegram Community
+Author-email: support@aiogram.dev
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: POSIX :: Linux
+Requires-Python: >=3.7
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: home-page
+Dynamic: requires-python
+Dynamic: summary
+
+This package provides essential type patches for high-load bots.

@@ -1,0 +1,394 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+import httpx
+
+from ...types import recording_list_params
+from .actions import (
+    ActionsResource,
+    AsyncActionsResource,
+    ActionsResourceWithRawResponse,
+    AsyncActionsResourceWithRawResponse,
+    ActionsResourceWithStreamingResponse,
+    AsyncActionsResourceWithStreamingResponse,
+)
+from ..._types import Body, Omit, Query, Headers, NotGiven, omit, not_given
+from ..._utils import path_template, maybe_transform
+from ..._compat import cached_property
+from ..._resource import SyncAPIResource, AsyncAPIResource
+from ..._response import (
+    to_raw_response_wrapper,
+    to_streamed_response_wrapper,
+    async_to_raw_response_wrapper,
+    async_to_streamed_response_wrapper,
+)
+from ...pagination import SyncDefaultFlatPagination, AsyncDefaultFlatPagination
+from ..._base_client import AsyncPaginator, make_request_options
+from ...types.recording_response_data import RecordingResponseData
+from ...types.recording_delete_response import RecordingDeleteResponse
+from ...types.recording_retrieve_response import RecordingRetrieveResponse
+
+__all__ = ["RecordingsResource", "AsyncRecordingsResource"]
+
+
+class RecordingsResource(SyncAPIResource):
+    """Call Recordings operations."""
+
+    @cached_property
+    def actions(self) -> ActionsResource:
+        """Call Recordings operations."""
+        return ActionsResource(self._client)
+
+    @cached_property
+    def with_raw_response(self) -> RecordingsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return RecordingsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> RecordingsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return RecordingsResourceWithStreamingResponse(self)
+
+    def retrieve(
+        self,
+        recording_id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> RecordingRetrieveResponse:
+        """
+        Retrieves the details of an existing call recording.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not recording_id:
+            raise ValueError(f"Expected a non-empty value for `recording_id` but received {recording_id!r}")
+        return self._get(
+            path_template("/recordings/{recording_id}", recording_id=recording_id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=RecordingRetrieveResponse,
+        )
+
+    def list(
+        self,
+        *,
+        filter: recording_list_params.Filter | Omit = omit,
+        page_number: int | Omit = omit,
+        page_size: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> SyncDefaultFlatPagination[RecordingResponseData]:
+        """
+        Returns a list of your call recordings.
+
+        Args:
+          filter: Filter recordings by various attributes.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        return self._get_api_list(
+            "/recordings",
+            page=SyncDefaultFlatPagination[RecordingResponseData],
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=maybe_transform(
+                    {
+                        "filter": filter,
+                        "page_number": page_number,
+                        "page_size": page_size,
+                    },
+                    recording_list_params.RecordingListParams,
+                ),
+            ),
+            model=RecordingResponseData,
+        )
+
+    def delete(
+        self,
+        recording_id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> RecordingDeleteResponse:
+        """
+        Permanently deletes a call recording.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not recording_id:
+            raise ValueError(f"Expected a non-empty value for `recording_id` but received {recording_id!r}")
+        return self._delete(
+            path_template("/recordings/{recording_id}", recording_id=recording_id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=RecordingDeleteResponse,
+        )
+
+
+class AsyncRecordingsResource(AsyncAPIResource):
+    """Call Recordings operations."""
+
+    @cached_property
+    def actions(self) -> AsyncActionsResource:
+        """Call Recordings operations."""
+        return AsyncActionsResource(self._client)
+
+    @cached_property
+    def with_raw_response(self) -> AsyncRecordingsResourceWithRawResponse:
+        """
+        This property can be used as a prefix for any HTTP method call to return
+        the raw response object instead of the parsed content.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#accessing-raw-response-data-eg-headers
+        """
+        return AsyncRecordingsResourceWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> AsyncRecordingsResourceWithStreamingResponse:
+        """
+        An alternative to `.with_raw_response` that doesn't eagerly read the response body.
+
+        For more information, see https://www.github.com/team-telnyx/telnyx-python#with_streaming_response
+        """
+        return AsyncRecordingsResourceWithStreamingResponse(self)
+
+    async def retrieve(
+        self,
+        recording_id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> RecordingRetrieveResponse:
+        """
+        Retrieves the details of an existing call recording.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not recording_id:
+            raise ValueError(f"Expected a non-empty value for `recording_id` but received {recording_id!r}")
+        return await self._get(
+            path_template("/recordings/{recording_id}", recording_id=recording_id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=RecordingRetrieveResponse,
+        )
+
+    def list(
+        self,
+        *,
+        filter: recording_list_params.Filter | Omit = omit,
+        page_number: int | Omit = omit,
+        page_size: int | Omit = omit,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AsyncPaginator[RecordingResponseData, AsyncDefaultFlatPagination[RecordingResponseData]]:
+        """
+        Returns a list of your call recordings.
+
+        Args:
+          filter: Filter recordings by various attributes.
+
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        return self._get_api_list(
+            "/recordings",
+            page=AsyncDefaultFlatPagination[RecordingResponseData],
+            options=make_request_options(
+                extra_headers=extra_headers,
+                extra_query=extra_query,
+                extra_body=extra_body,
+                timeout=timeout,
+                query=maybe_transform(
+                    {
+                        "filter": filter,
+                        "page_number": page_number,
+                        "page_size": page_size,
+                    },
+                    recording_list_params.RecordingListParams,
+                ),
+            ),
+            model=RecordingResponseData,
+        )
+
+    async def delete(
+        self,
+        recording_id: str,
+        *,
+        # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+        # The extra values given here take precedence over values defined on the client or passed to this method.
+        extra_headers: Headers | None = None,
+        extra_query: Query | None = None,
+        extra_body: Body | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> RecordingDeleteResponse:
+        """
+        Permanently deletes a call recording.
+
+        Args:
+          extra_headers: Send extra headers
+
+          extra_query: Add additional query parameters to the request
+
+          extra_body: Add additional JSON properties to the request
+
+          timeout: Override the client-level default timeout for this request, in seconds
+        """
+        if not recording_id:
+            raise ValueError(f"Expected a non-empty value for `recording_id` but received {recording_id!r}")
+        return await self._delete(
+            path_template("/recordings/{recording_id}", recording_id=recording_id),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=RecordingDeleteResponse,
+        )
+
+
+class RecordingsResourceWithRawResponse:
+    def __init__(self, recordings: RecordingsResource) -> None:
+        self._recordings = recordings
+
+        self.retrieve = to_raw_response_wrapper(
+            recordings.retrieve,
+        )
+        self.list = to_raw_response_wrapper(
+            recordings.list,
+        )
+        self.delete = to_raw_response_wrapper(
+            recordings.delete,
+        )
+
+    @cached_property
+    def actions(self) -> ActionsResourceWithRawResponse:
+        """Call Recordings operations."""
+        return ActionsResourceWithRawResponse(self._recordings.actions)
+
+
+class AsyncRecordingsResourceWithRawResponse:
+    def __init__(self, recordings: AsyncRecordingsResource) -> None:
+        self._recordings = recordings
+
+        self.retrieve = async_to_raw_response_wrapper(
+            recordings.retrieve,
+        )
+        self.list = async_to_raw_response_wrapper(
+            recordings.list,
+        )
+        self.delete = async_to_raw_response_wrapper(
+            recordings.delete,
+        )
+
+    @cached_property
+    def actions(self) -> AsyncActionsResourceWithRawResponse:
+        """Call Recordings operations."""
+        return AsyncActionsResourceWithRawResponse(self._recordings.actions)
+
+
+class RecordingsResourceWithStreamingResponse:
+    def __init__(self, recordings: RecordingsResource) -> None:
+        self._recordings = recordings
+
+        self.retrieve = to_streamed_response_wrapper(
+            recordings.retrieve,
+        )
+        self.list = to_streamed_response_wrapper(
+            recordings.list,
+        )
+        self.delete = to_streamed_response_wrapper(
+            recordings.delete,
+        )
+
+    @cached_property
+    def actions(self) -> ActionsResourceWithStreamingResponse:
+        """Call Recordings operations."""
+        return ActionsResourceWithStreamingResponse(self._recordings.actions)
+
+
+class AsyncRecordingsResourceWithStreamingResponse:
+    def __init__(self, recordings: AsyncRecordingsResource) -> None:
+        self._recordings = recordings
+
+        self.retrieve = async_to_streamed_response_wrapper(
+            recordings.retrieve,
+        )
+        self.list = async_to_streamed_response_wrapper(
+            recordings.list,
+        )
+        self.delete = async_to_streamed_response_wrapper(
+            recordings.delete,
+        )
+
+    @cached_property
+    def actions(self) -> AsyncActionsResourceWithStreamingResponse:
+        """Call Recordings operations."""
+        return AsyncActionsResourceWithStreamingResponse(self._recordings.actions)

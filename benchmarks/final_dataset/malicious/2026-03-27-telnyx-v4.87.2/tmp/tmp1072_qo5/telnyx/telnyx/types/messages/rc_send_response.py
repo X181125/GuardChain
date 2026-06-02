@@ -1,0 +1,57 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from typing import List, Optional
+from datetime import datetime
+
+from pydantic import Field as FieldInfo
+
+from ..._models import BaseModel
+from ..rcs_to_item import RcsToItem
+from ..rcs_agent_message import RcsAgentMessage
+
+__all__ = ["RcSendResponse", "Data", "DataFrom"]
+
+
+class DataFrom(BaseModel):
+    agent_id: Optional[str] = None
+    """agent ID"""
+
+    agent_name: Optional[str] = None
+
+    carrier: Optional[str] = None
+
+
+class Data(BaseModel):
+    id: Optional[str] = None
+    """message ID"""
+
+    body: Optional[RcsAgentMessage] = None
+
+    direction: Optional[str] = None
+
+    encoding: Optional[str] = None
+
+    from_: Optional[DataFrom] = FieldInfo(alias="from", default=None)
+
+    messaging_profile_id: Optional[str] = None
+
+    organization_id: Optional[str] = None
+
+    received_at: Optional[datetime] = None
+
+    record_type: Optional[str] = None
+
+    to: Optional[List[RcsToItem]] = None
+
+    type: Optional[str] = None
+
+    wait_seconds: Optional[float] = None
+    """
+    Seconds the message is queued due to rate limiting before being sent to the
+    carrier. Represents the maximum wait across all applicable rate limits (account,
+    carrier, campaign). 0.0 = no queuing delay.
+    """
+
+
+class RcSendResponse(BaseModel):
+    data: Optional[Data] = None

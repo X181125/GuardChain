@@ -3,18 +3,92 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 
-from .ast_analyzer import get_call_name
+from .call_resolver import CallResolver, get_call_name
 from .models import Finding, PackageContext
 from .utils import preview_node, relative_path, safe_read_text
 
-SENSITIVE_SOURCES = {"os.environ", "os.getenv", "getpass.getuser", "socket.gethostname", "platform.node", "pathlib.Path.home", "Path.home"}
-NETWORK_SOURCES = {"requests.get", "requests.request", "urllib.request.urlopen", "socket.recv"}
-OBFUSCATION_SOURCES = {"base64.b64decode", "marshal.loads", "zlib.decompress", "codecs.decode", "binascii.unhexlify"}
-NETWORK_SINKS = {"requests.post", "requests.put", "urllib.request.Request", "socket.send", "socket.sendall"}
-COMMAND_SINKS = {"os.system", "subprocess.run", "subprocess.Popen", "subprocess.call", "subprocess.check_output"}
-DYNAMIC_SINKS = {"eval", "exec", "compile"}
-FILE_WRITE_SINKS = {"open", "Path.write_text", "Path.write_bytes"}
-SECRET_PATH_MARKERS = {".env", "id_rsa", "credentials", "token", "secret"}
+SENSITIVE_SOURCES = {
+    "os.environ",
+    "os.getenv",
+    "getpass.getuser",
+    "socket.gethostname",
+    "platform.node",
+    "platform.platform",
+    "uuid.getnode",
+    "pathlib.Path.home",
+    "Path.home",
+}
+NETWORK_SOURCES = {
+    "requests.get",
+    "requests.request",
+    "urllib.request.urlopen",
+    "httpx.get",
+    "httpx.request",
+    "socket.recv",
+}
+OBFUSCATION_SOURCES = {
+    "base64.b64decode",
+    "base64.urlsafe_b64decode",
+    "marshal.loads",
+    "zlib.decompress",
+    "codecs.decode",
+    "binascii.unhexlify",
+}
+NETWORK_SINKS = {
+    "requests.post",
+    "requests.put",
+    "requests.request",
+    "urllib.request.Request",
+    "httpx.post",
+    "httpx.put",
+    "httpx.request",
+    "socket.send",
+    "socket.sendall",
+}
+COMMAND_SINKS = {
+    "os.system",
+    "os.popen",
+    "os.execl",
+    "os.execv",
+    "os.execve",
+    "os.spawnl",
+    "os.spawnv",
+    "pty.spawn",
+    "subprocess.run",
+    "subprocess.Popen",
+    "subprocess.call",
+    "subprocess.check_call",
+    "subprocess.check_output",
+    "subprocess.getoutput",
+    "commands.getoutput",
+}
+DYNAMIC_SINKS = {"eval", "exec", "compile", "execfile", "runpy.run_path", "runpy.run_module", "types.FunctionType"}
+FILE_WRITE_SINKS = {"open", "Path.write_text", "Path.write_bytes", "pathlib.Path.write_text", "pathlib.Path.write_bytes", "shutil.copy", "shutil.move"}
+SECRET_PATH_MARKERS = {
+    ".env",
+    ".ssh",
+    "id_rsa",
+    "id_dsa",
+    ".aws",
+    "credentials",
+    ".pypirc",
+    ".npmrc",
+    "token",
+    "secret",
+    "gcloud",
+    "kube",
+    "config.json",
+}
+SUSPICIOUS_WRITE_MARKERS = {
+    ".bashrc",
+    ".zshrc",
+    ".profile",
+    "crontab",
+    "systemd",
+    "runonce",
+    "currentversion\\run",
+}
+SUSPICIOUS_WRITE_EXTENSIONS = {".exe", ".dll", ".so", ".bat", ".ps1", ".sh", ".scr"}
 
 
 @dataclass
@@ -96,7 +170,7 @@ class _TaintVisitor(ast.NodeVisitor):
         emit_findings: bool = True,
     ) -> None:
         self.rel_path = rel_path
-        self.aliases: dict[str, str] = {}
+        self.resolver = CallResolver()
         self.function_stack: list[str] = []
         self.tainted: dict[str, _Taint] = {}
         self.findings: list[Finding] = []
@@ -108,14 +182,11 @@ class _TaintVisitor(ast.NodeVisitor):
         self.emit_findings = emit_findings
 
     def visit_Import(self, node: ast.Import) -> None:
-        for alias in node.names:
-            self.aliases[alias.asname or alias.name.split(".")[0]] = alias.name
+        self.resolver.record_import(node)
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        module = node.module or ""
-        for alias in node.names:
-            self.aliases[alias.asname or alias.name] = f"{module}.{alias.name}" if module else alias.name
+        self.resolver.record_import_from(node)
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -135,19 +206,23 @@ class _TaintVisitor(ast.NodeVisitor):
         self.visit_FunctionDef(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            self.resolver.record_assignment(target, node.value)
+        if len(node.targets) == 1 and self._assign_unpacked_taint(node.targets[0], node.value, getattr(node, "lineno", None)):
+            self.generic_visit(node)
+            return
         taint = self._expr_taint(node.value)
         if taint:
             for target in node.targets:
-                for name in self._target_names(target):
-                    self.tainted[name] = _Taint(taint.kind, taint.source, name, getattr(node, "lineno", None))
+                self._assign_target_taint(target, taint, getattr(node, "lineno", None))
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if node.value:
+            self.resolver.record_assignment(node.target, node.value)
             taint = self._expr_taint(node.value)
             if taint:
-                for name in self._target_names(node.target):
-                    self.tainted[name] = _Taint(taint.kind, taint.source, name, getattr(node, "lineno", None))
+                self._assign_target_taint(node.target, taint, getattr(node, "lineno", None))
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
@@ -170,6 +245,12 @@ class _TaintVisitor(ast.NodeVisitor):
                 self._emit("T006", "Network source flows into dynamic execution", "CRITICAL", 50, taint, sink, node)
             if taint.kind in {"sensitive", "local_secret"} and sink in COMMAND_SINKS:
                 self._emit("T007", "Sensitive source flows into command execution", "HIGH", 30, taint, sink, node)
+            if (
+                taint.kind in {"sensitive", "local_secret"}
+                and self._is_file_write_sink(node, sink)
+                and self._is_suspicious_file_write_path(node)
+            ):
+                self._emit("T008", "Sensitive source flows into suspicious file write", "HIGH", 30, taint, sink or "file_write", node)
             if self.collect_summaries and taint.kind == "param":
                 self._record_param_sink_kind(taint, sink, node)
         self._emit_interprocedural_sinks(node, sink)
@@ -189,6 +270,9 @@ class _TaintVisitor(ast.NodeVisitor):
     def _expr_taint(self, node: ast.AST) -> _Taint | None:
         if isinstance(node, ast.Name) and node.id in self.tainted:
             return self.tainted[node.id]
+        target_name = self._target_name(node)
+        if target_name and target_name in self.tainted:
+            return self.tainted[target_name]
         if isinstance(node, ast.Call):
             call = self._resolve(node.func)
             interprocedural = self._call_return_taint(node, call)
@@ -216,6 +300,8 @@ class _TaintVisitor(ast.NodeVisitor):
             resolved = self._resolve(node)
             if resolved in SENSITIVE_SOURCES:
                 return _Taint("sensitive", resolved or "sensitive_source", "", getattr(node, "lineno", None))
+            if resolved and resolved in self.tainted:
+                return self.tainted[resolved]
             value_taint = self._expr_taint(node.value)
             if value_taint:
                 return value_taint
@@ -292,23 +378,42 @@ class _TaintVisitor(ast.NodeVisitor):
         return None
 
     def _resolve(self, node: ast.AST) -> str | None:
-        raw = get_call_name(node)
-        if raw is None:
-            return None
-        parts = raw.split(".")
-        if parts[0] in self.aliases:
-            return ".".join([self.aliases[parts[0]], *parts[1:]])
-        return raw
+        return self.resolver.resolve(node)
 
     def _target_names(self, node: ast.AST) -> list[str]:
-        if isinstance(node, ast.Name):
-            return [node.id]
+        name = self._target_name(node)
+        if name:
+            return [name]
         if isinstance(node, (ast.Tuple, ast.List)):
             names: list[str] = []
             for item in node.elts:
                 names.extend(self._target_names(item))
             return names
         return []
+
+    def _target_name(self, node: ast.AST) -> str | None:
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            return get_call_name(node)
+        return None
+
+    def _assign_target_taint(self, target: ast.AST, taint: _Taint, line: int | None) -> None:
+        for name in self._target_names(target):
+            self.tainted[name] = _Taint(taint.kind, taint.source, name, line)
+
+    def _assign_unpacked_taint(self, target: ast.AST, value: ast.AST, line: int | None) -> bool:
+        if not isinstance(target, (ast.Tuple, ast.List)) or not isinstance(value, (ast.Tuple, ast.List)):
+            return False
+        if len(target.elts) != len(value.elts):
+            return False
+        assigned = False
+        for target_item, value_item in zip(target.elts, value.elts):
+            taint = self._expr_taint(value_item)
+            if taint:
+                self._assign_target_taint(target_item, taint, line)
+                assigned = True
+        return assigned
 
     def _emit(
         self,
@@ -433,6 +538,19 @@ class _TaintVisitor(ast.NodeVisitor):
                     return isinstance(mode, ast.Constant) and isinstance(mode.value, str) and any(flag in mode.value for flag in ("w", "a", "+"))
             return True
         return False
+
+    def _is_suspicious_file_write_path(self, node: ast.Call) -> bool:
+        text = " ".join(self._string_literals(node)).lower()
+        if any(marker in text for marker in SUSPICIOUS_WRITE_MARKERS):
+            return True
+        return any(text.endswith(ext) or ext in text for ext in SUSPICIOUS_WRITE_EXTENSIONS)
+
+    def _string_literals(self, node: ast.AST) -> list[str]:
+        values: list[str] = []
+        for child in ast.walk(node):
+            if isinstance(child, ast.Constant) and isinstance(child.value, str):
+                values.append(child.value)
+        return values
 
 
 def _taint_signature(values: dict[str, _Taint]) -> dict[str, tuple[str, str]]:

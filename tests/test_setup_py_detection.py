@@ -26,6 +26,15 @@ class SetupPyDetectionTests(unittest.TestCase):
         )
         self.assertIn("S002", rules)
 
+    def test_custom_install_run_with_command_detected(self) -> None:
+        rules = self._rules_for(
+            "from setuptools import setup\nfrom setuptools.command.install import install\n"
+            "import os\n"
+            "class CustomInstall(install):\n    def run(self):\n        cmd = os.system\n        cmd('echo test')\n"
+            "setup(name='x', cmdclass={'install': CustomInstall})\n"
+        )
+        self.assertIn("S006", rules)
+
     def test_setup_py_not_executed(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

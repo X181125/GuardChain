@@ -3,27 +3,66 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from .ast_analyzer import get_call_name
+from .call_resolver import CallResolver, get_call_name
 from .models import Finding, PackageContext
 from .utils import preview_node, relative_path, safe_read_text
 
 DANGEROUS_CALLS = {
     "os.system",
     "os.popen",
+    "os.execl",
+    "os.execv",
+    "os.execve",
+    "os.spawnl",
+    "os.spawnv",
+    "pty.spawn",
     "subprocess.run",
     "subprocess.Popen",
     "subprocess.call",
     "subprocess.check_call",
     "subprocess.check_output",
     "subprocess.getoutput",
+    "commands.getoutput",
     "eval",
     "exec",
     "compile",
+    "execfile",
+    "runpy.run_path",
+    "runpy.run_module",
+    "types.FunctionType",
 }
-NETWORK_CALLS = {"requests.get", "requests.post", "requests.request", "urllib.request.urlopen", "urllib.request.Request", "socket.socket"}
+NETWORK_CALLS = {
+    "requests.get",
+    "requests.post",
+    "requests.put",
+    "requests.request",
+    "urllib.request.urlopen",
+    "urllib.request.Request",
+    "http.client.HTTPConnection",
+    "http.client.HTTPSConnection",
+    "socket.socket",
+    "socket.create_connection",
+    "httpx.get",
+    "httpx.post",
+    "httpx.request",
+    "aiohttp.ClientSession",
+}
 OBFUSCATION_CALLS = {"base64.b64decode", "base64.urlsafe_b64decode", "marshal.loads", "zlib.decompress", "codecs.decode", "binascii.unhexlify"}
 FILE_OR_ENV_CALLS = {"open", "Path.write_text", "Path.write_bytes", "shutil.copy", "shutil.move", "os.environ", "os.getenv"}
-COMMAND_BASES = {"install", "develop", "build_py", "setuptools.command.install.install", "setuptools.command.develop.develop", "setuptools.command.build_py.build_py"}
+COMMAND_BASES = {
+    "install",
+    "develop",
+    "build_py",
+    "egg_info",
+    "sdist",
+    "bdist_wheel",
+    "setuptools.command.install.install",
+    "setuptools.command.develop.develop",
+    "setuptools.command.build_py.build_py",
+    "setuptools.command.egg_info.egg_info",
+    "setuptools.command.sdist.sdist",
+    "wheel.bdist_wheel.bdist_wheel",
+}
 
 
 def analyze_setup_py(context: PackageContext) -> list[Finding]:
@@ -55,7 +94,7 @@ def analyze_setup_py(context: PackageContext) -> list[Finding]:
 class _SetupVisitor(ast.NodeVisitor):
     def __init__(self, rel_path: str) -> None:
         self.rel_path = rel_path
-        self.aliases: dict[str, str] = {}
+        self.resolver = CallResolver()
         self.class_stack: list[str] = []
         self.function_stack: list[str] = []
         self.findings: list[Finding] = []
@@ -64,14 +103,21 @@ class _SetupVisitor(ast.NodeVisitor):
         self.custom_command_classes: set[str] = set()
 
     def visit_Import(self, node: ast.Import) -> None:
-        for alias in node.names:
-            self.aliases[alias.asname or alias.name.split(".")[0]] = alias.name
+        self.resolver.record_import(node)
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        module = node.module or ""
-        for alias in node.names:
-            self.aliases[alias.asname or alias.name] = f"{module}.{alias.name}" if module else alias.name
+        self.resolver.record_import_from(node)
+        self.generic_visit(node)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            self.resolver.record_assignment(target, node.value)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value:
+            self.resolver.record_assignment(node.target, node.value)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
@@ -92,8 +138,36 @@ class _SetupVisitor(ast.NodeVisitor):
         call = self._resolve(node.func)
         if call in DANGEROUS_CALLS and not self.function_stack and not self.class_stack:
             self._emit("S001", "Dangerous top-level setup.py behavior", "CRITICAL", 50, node, {"call": call, "args_preview": [preview_node(arg) for arg in node.args]})
+        if call in DANGEROUS_CALLS and self._inside_custom_run():
+            self._emit(
+                "S006",
+                "Custom setup command contains suspicious behavior",
+                "CRITICAL",
+                45,
+                node,
+                {
+                    "class": self.class_stack[-1] if self.class_stack else None,
+                    "function": self.function_stack[-1] if self.function_stack else None,
+                    "call": call,
+                    "args_preview": [preview_node(arg) for arg in node.args],
+                },
+            )
         if call in NETWORK_CALLS:
             self._emit("S003", "setup.py network access", "HIGH", 30, node, {"call": call, "args_preview": [preview_node(arg) for arg in node.args]})
+            if self._inside_custom_run():
+                self._emit(
+                    "S006",
+                    "Custom setup command contains suspicious behavior",
+                    "HIGH",
+                    35,
+                    node,
+                    {
+                        "class": self.class_stack[-1] if self.class_stack else None,
+                        "function": self.function_stack[-1] if self.function_stack else None,
+                        "call": call,
+                        "args_preview": [preview_node(arg) for arg in node.args],
+                    },
+                )
         if call in OBFUSCATION_CALLS:
             self.has_obfuscation = True
         if call in {"eval", "exec", "compile"}:
@@ -131,13 +205,10 @@ class _SetupVisitor(ast.NodeVisitor):
                         self._emit("S002", "Custom install/build/develop command", "HIGH", 30, node, {"cmdclass": f"{key_text}: {value_text}"})
 
     def _resolve(self, node: ast.AST) -> str | None:
-        raw = get_call_name(node)
-        if raw is None:
-            return None
-        parts = raw.split(".")
-        if parts[0] in self.aliases:
-            return ".".join([self.aliases[parts[0]], *parts[1:]])
-        return raw
+        return self.resolver.resolve(node)
+
+    def _inside_custom_run(self) -> bool:
+        return bool(self.class_stack and self.function_stack and self.class_stack[-1] in self.custom_command_classes and self.function_stack[-1] == "run")
 
     def _emit(self, rule_id: str, title: str, severity: str, score: int, node: ast.AST, evidence: dict[str, object]) -> None:
         self.findings.append(

